@@ -1,0 +1,19 @@
+﻿syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+option csharp_namespace = "LinkTracker.Scrapper.Grpc.Chats";
+
+message CreateChatRequest {
+  int64 id = 1;
+}
+
+message RemoveChatRequest {
+  int64 id = 1;
+}
+
+service ScrapperChatsService
+{
+  rpc CreateChat (CreateChatRequest) returns (google.protobuf.Empty);
+  rpc RemoveChat (RemoveChatRequest) returns (google.protobuf.Empty);
+}

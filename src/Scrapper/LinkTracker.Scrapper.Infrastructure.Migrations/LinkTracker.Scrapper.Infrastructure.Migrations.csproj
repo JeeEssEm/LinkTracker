@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <OutputType>Exe</OutputType>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="dbup-core" Version="6.1.1" />
+      <PackageReference Include="dbup-postgresql" Version="7.0.1" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <EmbeddedResource Include="..\..\..\migrations\001-initial.sql">
+        <Link>Migrations\001-initial.sql</Link>
+      </EmbeddedResource>
+    </ItemGroup>
+
+</Project>

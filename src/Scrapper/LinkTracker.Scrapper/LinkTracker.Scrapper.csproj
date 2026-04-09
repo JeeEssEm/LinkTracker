@@ -1,0 +1,46 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="FluentResults" Version="4.0.0" />
+        <PackageReference Include="Grpc.AspNetCore" Version="2.76.0" />
+        <PackageReference Include="Grpc.AspNetCore.Server.Reflection" Version="2.76.0" />
+        <PackageReference Include="Grpc.Tools" Version="2.78.0">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.10" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.14">
+          <PrivateAssets>all</PrivateAssets>
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="Quartz.Extensions.Hosting" Version="3.14.0" />
+        <PackageReference Include="Refit" Version="10.0.1" />
+        <PackageReference Include="Refit.HttpClientFactory" Version="10.0.1" />
+        <PackageReference Include="Seq.Extensions.Logging" Version="9.0.0" />
+        <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.6" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\..\Bot\LinkTracker.Bot.Contracts\LinkTracker.Bot.Contracts.csproj" />
+      <ProjectReference Include="..\..\Contracts\LinkTracker.Contracts.Shared\LinkTracker.Contracts.Shared.csproj" />
+      <ProjectReference Include="..\LinkTracker.Scrapper.Application\LinkTracker.Scrapper.Application.csproj" />
+      <ProjectReference Include="..\LinkTracker.Scrapper.Contracts\LinkTracker.Scrapper.Contracts.csproj" />
+      <ProjectReference Include="..\LinkTracker.Scrapper.Infrastructure.Migrations\LinkTracker.Scrapper.Infrastructure.Migrations.csproj" />
+      <ProjectReference Include="..\LinkTracker.Scrapper.Infrastructure.Orm\LinkTracker.Scrapper.Infrastructure.Orm.csproj" />
+      <ProjectReference Include="..\LinkTracker.Scrapper.Infrastructure.Sql\LinkTracker.Scrapper.Infrastructure.Sql.csproj" />
+    </ItemGroup>
+    
+    <ItemGroup>
+        <EmbeddedResource Include="..\..\..\migrations\001-initial.sql">
+            <Link>Migrations/001-initial.sql</Link>
+        </EmbeddedResource>
+    </ItemGroup>
+
+</Project>

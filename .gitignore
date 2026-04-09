@@ -486,3 +486,4 @@ $RECYCLE.BIN/
 
 
 nuget.config
+appsettings.Development.json
