@@ -35,10 +35,10 @@ module_test:
       allow_failure: false
     - when: never
   script:
-    - dotnet test
+    - dotnet test --filter "FullyQualifiedName!~LinkTracker.Tests.Scrapper.Repositories&FullyQualifiedName!~LinkTracker.Tests.Scrapper.Api"
 
 integration_test:
-  image: docker 
+  image: mcr.microsoft.com/dotnet/sdk:9.0
   stage: test
   needs: 
     - job: module_test
@@ -48,6 +48,7 @@ integration_test:
       allow_failure: false
     - when: never
   variables:
+    TESTCONTAINERS_RYUK_DISABLED: true
     DOCKER_HOST: tcp://docker:2376
     DOCKER_TLS_CERTDIR: "/certs"
     DOCKER_TLS_VERIFY: 1
@@ -57,9 +58,11 @@ integration_test:
   services:
     - name: docker:29.0.1-dind
       alias: docker
+      command: ["--tls=false"]
   before_script:
+    - curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-27.3.1.tgz | tar -xz --strip-components=1 -C /usr/local/bin docker/docker
     - echo "$CI_JOB_TOKEN" | docker login gitlab.education.tbank.ru:443 -u gitlab-ci-token --password-stdin
   script:
-    - echo "Running tests..."
+    - dotnet test --filter "FullyQualifiedName~LinkTracker.Tests.Scrapper.Repositories|FullyQualifiedName~LinkTracker.Tests.Scrapper.Api"
 
   

@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\..\Contracts\LinkTracker.Contracts.Shared\LinkTracker.Contracts.Shared.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="FluentResults" Version="4.0.0" />
+      <PackageReference Include="Google.Protobuf" Version="3.34.1" />
+      <PackageReference Include="Grpc.AspNetCore" Version="2.76.0" />
+    </ItemGroup>
+    
+    <ItemGroup>
+        <Protobuf Include="Protos\**/*.proto" ProtoRoot="Protos" GrpcServices="Both" />
+    </ItemGroup>
+</Project>

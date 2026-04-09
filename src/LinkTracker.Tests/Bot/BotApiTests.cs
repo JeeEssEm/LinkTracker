@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
+using LinkTracker.Bot.Contracts.Rest;
 using LinkTracker.Scrapper.ApiClients.BotNotifier;
 
 namespace LinkTracker.Tests.Bot;

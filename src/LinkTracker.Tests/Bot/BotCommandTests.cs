@@ -2,8 +2,6 @@
 using FluentResults;
 using LinkTracker.Bot.App.ApiClients;
 using LinkTracker.Bot.App.ApiClients.Scrapper;
-using LinkTracker.Bot.App.ApiClients.Scrapper.Dtos;
-using LinkTracker.Bot.App.ApiClients.Scrapper.Errors.Chats;
 using LinkTracker.Bot.App.ApiClients.Scrapper.Rest;
 using LinkTracker.Bot.App.Domain;
 using LinkTracker.Bot.App.Features.Bot.TrackLink.Flow;
@@ -13,6 +11,8 @@ using LinkTracker.Bot.Core.DependencyInjectionExtensions;
 using LinkTracker.Bot.Core.Dispatchers;
 using LinkTracker.Bot.Core.StateMachine;
 using LinkTracker.Bot.Core.StateMachine.Abstractions;
+using LinkTracker.Scrapper.Contracts.Dtos.Links;
+using LinkTracker.Scrapper.Errors.Chats;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 using Telegram.Bot;
@@ -119,7 +119,7 @@ public class BotCommandTests
     {
         var chatId = 5;
         _scrapperClient.ListLinksAsync(chatId)
-            .Returns(Task.FromResult(Result.Ok(new ListLinksResponse(new List<LinkDto>(), 0))));
+            .Returns(Task.FromResult(Result.Ok(new ListLinksResponse(new List<LinkResponse>(), 0))));
 
         await DispatchAsync("/links", chatId);
 
@@ -132,9 +132,9 @@ public class BotCommandTests
     public async Task LinksCommand_WithLinks_SendsList()
     {
         var chatId = 6;
-        var links = new List<LinkDto>
+        var links = new List<LinkResponse>
         {
-            new LinkDto(1, "https://github.com/test/repo", new List<string> { "work" }, null)
+            new(1, "https://github.com/test/repo", new List<string> { "work" })
         };
         _scrapperClient.ListLinksAsync(chatId)
             .Returns(Task.FromResult(Result.Ok(new ListLinksResponse(links, links.Count))));
@@ -153,10 +153,10 @@ public class BotCommandTests
     public async Task LinksCommand_WithTagFilter_FiltersLinks()
     {
         var chatId = 7;
-        var links = new List<LinkDto>
+        var links = new List<LinkResponse>
         {
-            new LinkDto(1, "https://github.com/a/b", new List<string> { "work" }, null),
-            new LinkDto(2, "https://github.com/c/d", new List<string> { "hobby" }, null)
+            new (1, "https://github.com/a/b", new List<string> { "work" }),
+            new (2, "https://github.com/c/d", new List<string> { "hobby" })
         };
         _scrapperClient.ListLinksAsync(chatId)
             .Returns(Result.Ok(new ListLinksResponse(links, links.Count)));

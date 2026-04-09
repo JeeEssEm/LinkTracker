@@ -5,20 +5,26 @@ LinkTracker — это система для отслеживания измен
 ## Состав решения
 
 ### 1. LinkTracker.Bot
+
 Telegram-бот, обеспечивающий интерфейс взаимодействия с пользователем.
+
 - **LinkTracker.Bot.App**: Хост-проект (ASP.NET Core), отвечающий за конфигурацию и запуск сервиса.
 - **LinkTracker.Bot.Core**: Ядро логики бота. Включает в себя:
-    - **State Machine**: Система управления состояниями сессий пользователей (`UserSession`), позволяющая строить сложные многошаговые диалоги.
-    - **Dispatchers**: Диспетчеризация входящих обновлений (Messages, Callback Queries, Commands) к соответствующим обработчикам.
-    - **Middlewares**: Конвейер обработки обновлений, включающий логику извлечения контекста, управления состояниями и логирования.
+  - **State Machine**: Система управления состояниями сессий пользователей (`UserSession`), позволяющая строить сложные многошаговые диалоги.
+  - **Dispatchers**: Диспетчеризация входящих обновлений (Messages, Callback Queries, Commands) к соответствующим обработчикам.
+  - **Middlewares**: Конвейер обработки обновлений, включающий логику извлечения контекста, управления состояниями и логирования.
 
 ### 2. LinkTracker.Scrapper
+
 Микросервис, отвечающий за хранение данных о пользователях (чатах) и отслеживаемых ссылках.
+
 - Управляет списком подписок.
 - Предоставляет API для добавления/удаления ссылок и получения списка отслеживаемых ресурсов.
 
 ### 3. LinkTracker.Contracts
+
 Общий проект с контрактами данных и логикой взаимодействия.
+
 - Содержит определения gRPC-сервисов (Protobuf).
 - **GrpcErrorMapper**: Система маппинга ошибок, которая позволяет унифицированно транслировать бизнес-ошибки из `FluentResults` в gRPC-статусы и обратно, обеспечивая прозрачную обработку исключений на стороне клиента и сервера.
 
@@ -35,12 +41,45 @@ Telegram-бот, обеспечивающий интерфейс взаимод�
 ## QuickStart
 
 ### Требования
+
 - .NET 8 / .NET 9 SDK
+
+### Docker Compose (.env)
+
+1. Скопируйте `.env.example` в `.env` и заполните `TELEGRAM_BOT_TOKEN`.
+2. Проверьте внутренние адреса сервисов в `.env`:
+
+```env
+BOT_TO_SCRAPPER_BASE_URL=http://scrapper:50052
+SCRAPPER_TO_BOT_BASE_URL=http://bot:50051
+BOT_TO_SCRAPPER_USE_GRPC=true
+SCRAPPER_TO_BOT_USE_GRPC=true
+```
+
+Если используете REST вместо gRPC, переключите флаги `*_USE_GRPC=false` и поменяйте URL на HTTP-порты: `scrapper:8010` и `bot:8009`.
+
+3. При необходимости задайте имя общей docker-сети через `COMPOSE_NETWORK_NAME` (по умолчанию `link-tracker-network`).
+4. Поднимите сервисы:
+
+```powershell
+docker compose up --build -d
+```
+
+5. Посмотрите статус и логи:
+
+```powershell
+docker compose ps
+docker compose logs -f migrations scrapper bot
+```
+
+В цепочке запуска сначала стартует `postgres`, затем одноразовый сервис `migrations` (dbUp), после успешного завершения миграций стартует `scrapper`, а затем `bot`.
 
 ### Настройка параметров (`appsettings.json`)
 
 #### LinkTracker.Bot.App
+
 В секции `BotOptions` необходимо указать токен вашего Telegram-бота:
+
 ```json
 "BotOptions": {
   "Token": "YOUR_TELEGRAM_BOT_TOKEN"
@@ -48,17 +87,21 @@ Telegram-бот, обеспечивающий интерфейс взаимод�
 ```
 
 Для настройки связи со Scrapper:
+
 ```json
 "ScrapperClientOptions": {
   "BaseUrl": "http://localhost:50052",
-  "UseGrpc": true 
+  "UseGrpc": true
 }
 ```
-*   `BaseUrl`: Адрес сервиса Scrapper.
-*   `UseGrpc`: `true` — использовать gRPC, `false` — использовать REST (HTTP).
+
+- `BaseUrl`: Адрес сервиса Scrapper.
+- `UseGrpc`: `true` — использовать gRPC, `false` — использовать REST (HTTP).
 
 #### LinkTracker.Scrapper
+
 Настройка связи с Bot (для отправки уведомлений):
+
 ```json
 "BotClientOptions": {
   "BaseUrl": "http://localhost:50051",
@@ -94,6 +137,7 @@ dotnet run --project src/LinkTracker.Bot.App/LinkTracker.Bot.App.csproj
 6.  `LinkTracker.Scrapper` обрабатывает запрос и возвращает результат, при необходимости используя `GrpcErrorMapper` для корректной передачи ошибок.
 
 #### Bot Service
+
 Отвечает за взаимодействие с пользователями через Telegram Bot API:
 
 - Регистрация и авторизация пользователей
@@ -102,8 +146,8 @@ dotnet run --project src/LinkTracker.Bot.App/LinkTracker.Bot.App.csproj
 - Отправка уведомлений пользователям
 - Хранение данных о пользователях и их настройках
 
-
 #### Scrapper Service
+
 Осуществляет мониторинг контента:
 
 - Периодическая проверка отслеживаемых URL на наличие изменений
@@ -112,8 +156,8 @@ dotnet run --project src/LinkTracker.Bot.App/LinkTracker.Bot.App.csproj
 - Отправка уведомлений в Bot Service при обнаружении обновлений
 - Хранение информации о подписках и состоянии контента
 
-
 #### AI Agent Service
+
 Обрабатывает контент перед отправкой уведомлений:
 
 - Суммаризация длинных обновлений
@@ -126,4 +170,3 @@ dotnet run --project src/LinkTracker.Bot.App/LinkTracker.Bot.App.csproj
 
 - REST API для синхронной коммуникации
 - Apache Kafka для асинхронной обработки
-
