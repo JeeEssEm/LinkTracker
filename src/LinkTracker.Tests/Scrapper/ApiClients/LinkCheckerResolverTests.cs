@@ -1,6 +1,4 @@
-﻿using LinkTracker.Scrapper.ApiClients;
-using LinkTracker.Scrapper.ApiClients.Abstractions;
-using LinkTracker.Scrapper.ApiClients.Shared;
+﻿using LinkTracker.Scrapper.Application.Scraping.LinkCheckers;
 using NSubstitute;
 
 namespace LinkTracker.Tests.Scrapper.ApiClients;

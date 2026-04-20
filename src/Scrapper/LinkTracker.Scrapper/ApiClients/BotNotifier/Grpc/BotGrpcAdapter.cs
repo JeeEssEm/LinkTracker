@@ -3,6 +3,7 @@ using Grpc.Core;
 using LinkTracker.Bot.Contracts.Rest;
 using LinkTracker.Bot.Grpc.Links;
 using LinkTracker.Contracts.GrpcErrors;
+using LinkTracker.Scrapper.Application.Scraping.ApiClients.Bot;
 using BotServiceClient = LinkTracker.Bot.Grpc.Links.BotService.BotServiceClient;
 
 namespace LinkTracker.Scrapper.ApiClients.BotNotifier.Grpc;

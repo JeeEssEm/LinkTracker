@@ -33,19 +33,6 @@ public class LinkRepository(LinkTrackerContext dbContext, ILogger<LinkRepository
         return link.ToDomain();
     }
 
-    public async Task<List<Link>> GetLinksByOwnerIdAsync(long chatId)
-    {
-        var links = await dbContext.Links
-            .Where(link => link.Subscriptions.Any(sub => sub.ChatId == chatId))
-            .Include(link => link.LinkTags
-                .Where(lt => lt.Tag.ChatId == chatId)
-            )
-            .ThenInclude(linkTag => linkTag.Tag)
-            .ToListAsync();
-
-        return links.ToDomain();
-    }
-
     public async Task<Link?> RemoveLink(string url)
     {
         var link = await dbContext.Links
@@ -62,19 +49,11 @@ public class LinkRepository(LinkTrackerContext dbContext, ILogger<LinkRepository
         return link.ToDomain();
     }
 
-    public async Task UpdateCheckDatesAt(long linkId, DateTime checkedAt, DateTime? changeAt = null)
+    public async Task UpdateCheckDatesAt(long[] linkIds)
     {
-        var linkModel = await dbContext.Links.FindAsync(linkId);
-        if (linkModel == null)
-        {
-            return;
-        }
-
-        linkModel.LastCheckAt = checkedAt;
-        if (changeAt.HasValue)
-        {
-            linkModel.LastChangeAt = changeAt.Value;
-        }
+        await dbContext.Links
+            .Where(l => linkIds.Contains(l.Id))
+            .ExecuteUpdateAsync(s => s.SetProperty(l => l.LastCheckAt, DateTime.UtcNow));
 
         await dbContext.SaveChangesAsync();
     }
@@ -90,9 +69,14 @@ public class LinkRepository(LinkTrackerContext dbContext, ILogger<LinkRepository
             .ToListAsync();
 
         return links.Select(e => new LinkCheckEntry(
-                e.Link.Id, e.Link.Url, e.Link.CheckerKey, e.Link.LastChangeAt,
+                e.Link.Id, e.Link.Url, e.Link.CheckerKey, e.Link.LastCheckAt,
                 e.SubscriptionChatIds.ToList()
             )
         ).ToList();
+    }
+
+    public async Task RemoveLinksAsync(IEnumerable<long> linkIds)
+    {
+        await dbContext.Links.Where(l => linkIds.Contains(l.Id)).ExecuteDeleteAsync();
     }
 }

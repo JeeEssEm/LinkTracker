@@ -4,15 +4,21 @@ using LinkTracker.Bot.Grpc.Links;
 using LinkTracker.Contracts.GrpcErrors;
 using LinkTracker.Scrapper;
 using LinkTracker.Scrapper.ApiClients;
-using LinkTracker.Scrapper.ApiClients.Abstractions;
 using LinkTracker.Scrapper.ApiClients.BotNotifier;
 using LinkTracker.Scrapper.ApiClients.BotNotifier.Grpc;
 using LinkTracker.Scrapper.ApiClients.BotNotifier.Rest;
-using LinkTracker.Scrapper.ApiClients.Resources.Github;
-using LinkTracker.Scrapper.ApiClients.Resources.Github.Repository;
-using LinkTracker.Scrapper.ApiClients.Resources.StackOverflow;
-using LinkTracker.Scrapper.ApiClients.Resources.StackOverflow.Question;
 using LinkTracker.Scrapper.Application.Repositories;
+using LinkTracker.Scrapper.Application.Scraping.ApiClients.Bot;
+using LinkTracker.Scrapper.Application.Scraping.ApiClients.Github;
+using LinkTracker.Scrapper.Application.Scraping.ApiClients.StackOverflow;
+using LinkTracker.Scrapper.Application.Scraping.LinkCheckers;
+using LinkTracker.Scrapper.Application.Scraping.Pipelines;
+using LinkTracker.Scrapper.Application.Scraping.Pipelines.Github;
+using LinkTracker.Scrapper.Application.Scraping.Pipelines.Github.Steps;
+using LinkTracker.Scrapper.Application.Scraping.Pipelines.Notifications;
+using LinkTracker.Scrapper.Application.Scraping.Pipelines.Notifications.Strategies;
+using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow;
+using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Steps;
 using LinkTracker.Scrapper.Configurations;
 using LinkTracker.Scrapper.Contracts.GrpcErrorProfiles;
 using LinkTracker.Scrapper.Features.Chats;
@@ -25,6 +31,8 @@ using LinkTracker.Scrapper.Features.Links.RemoveLink;
 using LinkTracker.Scrapper.Infrastructure.Middleware;
 using LinkTracker.Scrapper.Infrastructure.Migrations;
 using LinkTracker.Scrapper.Infrastructure.Orm;
+using LinkTracker.Scrapper.Infrastructure.Pipelines.ExternalApi.Github;
+using LinkTracker.Scrapper.Infrastructure.Pipelines.ExternalApi.StackOverflow;
 using LinkTracker.Scrapper.Infrastructure.Sql;
 using LinkTracker.Scrapper.Scheduling;
 using Quartz;
@@ -35,6 +43,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.Configure<SchedulerOptions>(builder.Configuration.GetSection(SchedulerOptions.Position));
 builder.Services.Configure<BotClientOptions>(builder.Configuration.GetSection(BotClientOptions.Position));
 builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection(DatabaseOptions.Position));
+builder.Services.Configure<StackOverflowPipelineOptions>(builder.Configuration.GetSection(StackOverflowPipelineOptions.Position));
+builder.Services.Configure<GithubPipelineOptions>(builder.Configuration.GetSection(GithubPipelineOptions.Position));
 
 builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
@@ -47,12 +57,15 @@ builder.Services.AddScoped<RemoveLinkHandler>();
 builder.Services.AddScoped<GetLinksHandler>();
 
 builder.Services
-    .AddRefitClient<IGithubClient>()
+    .AddRefitClient<IGithubRefitClient>()
     .ConfigureHttpClient(c => c.BaseAddress = new Uri("https://api.github.com"));
 
 builder.Services
-    .AddRefitClient<IStackOverflowClient>()
+    .AddRefitClient<IStackOverflowRefitClient>()
     .ConfigureHttpClient(c => c.BaseAddress = new Uri("https://api.stackexchange.com"));
+
+builder.Services.AddScoped<IStackOverflowClient, StackOverflowClient>();
+builder.Services.AddScoped<IGithubClient, GithubClient>();
 
 var databaseOptions = builder.Configuration
     .GetSection(DatabaseOptions.Position)
@@ -109,6 +122,29 @@ builder.Services.AddScoped<LinkCheckerResolver>();
 var schedulerOptions = builder.Configuration
     .GetSection(SchedulerOptions.Position)
     .Get<SchedulerOptions>();
+
+builder.Services.AddSingleton<StackOverflowPipeline>();
+builder.Services.AddSingleton<FetchAnswersStep>();
+builder.Services.AddSingleton<ClearAnswersStep>();
+builder.Services.AddSingleton<FetchQuestionsStep>();
+builder.Services.AddSingleton<ClearQuestionsStep>();
+builder.Services.AddSingleton<ProcessAnswersStep>();
+builder.Services.AddSingleton<ProcessCommentsStep>();
+builder.Services.AddSingleton<FetchCommentsStep>();
+builder.Services.AddSingleton<FetchQuestionCommentsStep>();
+builder.Services.AddSingleton<ProcessQuestionCommentsStep>();
+builder.Services.AddSingleton<NotificationAggregator>();
+
+builder.Services.AddSingleton<GithubPipeline>();
+builder.Services.AddSingleton<FetchIssuesStep>();
+builder.Services.AddSingleton<FetchPullRequestsStep>();
+builder.Services.AddSingleton<ProcessDeletedRepositoriesStep>();
+builder.Services.AddSingleton<ProcessIssuesStep>();
+builder.Services.AddSingleton<ProcessPullRequestsStep>();
+
+builder.Services.AddScoped<INotificationStrategy, HttpNotificationStrategy>(); // TODO: добавить gRPC стратегию и env конфиг 
+
+builder.Services.AddSingleton<ScrapingCoordinator>();
 
 builder.Services.AddQuartz(q =>
 {

@@ -1,5 +1,6 @@
 ﻿using FluentResults;
 using LinkTracker.Bot.Contracts.Rest;
+using LinkTracker.Scrapper.Application.Scraping.ApiClients.Bot;
 
 namespace LinkTracker.Scrapper.ApiClients.BotNotifier.Rest;
 

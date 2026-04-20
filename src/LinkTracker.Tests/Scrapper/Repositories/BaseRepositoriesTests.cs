@@ -37,6 +37,8 @@ public abstract class BaseRepositoriesTests(ScrapperWebApplicationFactory factor
 
         var config = _serviceProvider.GetRequiredService<IConfiguration>();
         _connectionString = config.GetValue<string>("DatabaseOptions:ConnectionString")!;
+
+        await CleanupDatabaseAsync();
     }
 
     public async Task DisposeAsync()
@@ -185,18 +187,18 @@ public abstract class BaseRepositoriesTests(ScrapperWebApplicationFactory factor
         var initialCount = linksToCheck.Count;
         Assert.True(linksToCheck.Count >= 3);
 
-        var now = DateTime.UtcNow;
-        var checkedAt = now + TimeSpan.FromMinutes(5);
-        await LinkRepo.UpdateCheckDatesAt(link1.Id, checkedAt);
+        var beforeUpdate = DateTime.UtcNow;
+        await LinkRepo.UpdateCheckDatesAt([link1.Id]);
+        var afterUpdate = DateTime.UtcNow;
 
-        linksToCheck = await LinkRepo.GetLinksToCheck(1, 1000, now);
+        linksToCheck = await LinkRepo.GetLinksToCheck(1, 1000, beforeUpdate);
         Assert.Equal(initialCount - 1, linksToCheck.Count);
 
         var linkDate = await FetchListFromQuery<DateTime>(
             "SELECT last_check_at FROM links WHERE id = @id",
             new NpgsqlParameter("id", link1.Id));
         Assert.Single(linkDate);
-        Assert.True((linkDate[0] - checkedAt).Duration() < TimeSpan.FromMilliseconds(1));
+        Assert.InRange(linkDate[0], beforeUpdate, afterUpdate.AddSeconds(1));
     }
 
     [Fact]
@@ -302,34 +304,70 @@ public abstract class BaseRepositoriesTests(ScrapperWebApplicationFactory factor
         await ChatRepo.AddChatAsync(new Chat(chatId));
 
         var seed = NextId();
+        var url1 = $"https://some-url-{seed}-1.com";
+        var url2 = $"https://some-url-{seed}-2.com";
+        var url3 = $"https://some-url-{seed}-3.com";
+        var url4 = $"https://some-url-{seed}-4.com";
+        var url5 = $"https://some-url-{seed}-5.com";
+
         List<Link> links =
         [
-            await LinkRepo.CreateLink($"https://some-url-{seed}-1.com", "unk"),
-            await LinkRepo.CreateLink($"https://some-url-{seed}-2.com", "unk"),
-            await LinkRepo.CreateLink($"https://some-url-{seed}-3.com", "unk"),
-            await LinkRepo.CreateLink($"https://some-url-{seed}-4.com", "unk"),
-            await LinkRepo.CreateLink($"https://some-url-{seed}-5.com", "unk"),
+            await LinkRepo.CreateLink(url1, "unk"),
+            await LinkRepo.CreateLink(url2, "unk"),
+            await LinkRepo.CreateLink(url3, "unk"),
+            await LinkRepo.CreateLink(url4, "unk"),
+            await LinkRepo.CreateLink(url5, "unk"),
         ];
 
-        var now = DateTime.UtcNow;
-        var timeToCheck = now + TimeSpan.FromDays(1);
-        var index = 0;
         foreach (var link in links)
         {
             await SubRepo.CreateSubscriptionAsync(chatId, link.Id);
-            await LinkRepo.UpdateCheckDatesAt(link.Id, now + TimeSpan.FromSeconds(index++));
         }
-        var linksToCheck = await LinkRepo.GetLinksToCheck(1, 1000, timeToCheck);
-        var initialCount = linksToCheck.Count;
-        Assert.Contains($"https://some-url-{seed}-1.com", linksToCheck.Select(l => l.Url));
 
-        await LinkRepo.UpdateCheckDatesAt(links[0].Id, now + TimeSpan.FromDays(2));
-        linksToCheck = await LinkRepo.GetLinksToCheck(1, 1, timeToCheck);
+        var oldCheckAt = DateTime.SpecifyKind(new DateTime(2001, 1, 1, 0, 0, 0), DateTimeKind.Utc);
+        await SetLinksLastCheckAt(links.Select(l => l.Id).ToArray(), oldCheckAt);
+
+        var cutoff = oldCheckAt.AddHours(1);
+        var linksToCheck = await LinkRepo.GetLinksToCheck(1, 1000, cutoff);
+        Assert.Equal(5, linksToCheck.Count);
+        Assert.Contains(url1, linksToCheck.Select(l => l.Url));
+
+        await LinkRepo.UpdateCheckDatesAt([links[0].Id]);
+
+        linksToCheck = await LinkRepo.GetLinksToCheck(1, 1, cutoff);
         Assert.Single(linksToCheck);
-        Assert.Equal($"https://some-url-{seed}-2.com", linksToCheck[0].Url);
+        Assert.NotEqual(url1, linksToCheck[0].Url);
 
-        linksToCheck = await LinkRepo.GetLinksToCheck(1, 1000, timeToCheck);
-        Assert.Equal(initialCount - 1, linksToCheck.Count);
+        linksToCheck = await LinkRepo.GetLinksToCheck(1, 1000, cutoff);
+        Assert.Equal(4, linksToCheck.Count);
+        Assert.DoesNotContain(url1, linksToCheck.Select(l => l.Url));
+    }
+
+    private async Task CleanupDatabaseAsync()
+    {
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            "TRUNCATE TABLE link_tags, subscriptions, tags, links, chats RESTART IDENTITY CASCADE;",
+            connection);
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private async Task SetLinksLastCheckAt(long[] linkIds, DateTime timestamp)
+    {
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(
+            "UPDATE links SET last_check_at = @timestamp WHERE id = ANY(@linkIds);",
+            connection);
+
+        command.Parameters.AddWithValue("timestamp", timestamp);
+        command.Parameters.AddWithValue("linkIds", linkIds);
+
+        await command.ExecuteNonQueryAsync();
     }
 
     private async Task<List<T>> FetchListFromQuery<T>(string query, params NpgsqlParameter[] parameters)

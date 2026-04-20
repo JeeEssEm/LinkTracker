@@ -1,8 +1,7 @@
-﻿using Dapper;
+using Dapper;
 using FluentResults;
 using LinkTracker.Scrapper.Application.Repositories;
 using LinkTracker.Scrapper.Domain.Chats.Entities;
-using LinkTracker.Scrapper.Errors.Chats;
 
 namespace LinkTracker.Scrapper.Infrastructure.Sql.Repositories;
 

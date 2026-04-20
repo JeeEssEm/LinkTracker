@@ -1,8 +1,12 @@
-﻿using FluentResults;
+﻿using System.Diagnostics;
+using FluentResults;
 using LinkTracker.Scrapper.ApiClients;
 using LinkTracker.Scrapper.Application.Abstractions;
 using LinkTracker.Scrapper.Application.ReadModels;
 using LinkTracker.Scrapper.Application.Repositories;
+using LinkTracker.Scrapper.Application.Scraping.LinkCheckers;
+using LinkTracker.Scrapper.Application.Scraping.Pipelines.Github.Store;
+using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Store;
 using LinkTracker.Scrapper.Contracts.Dtos.Links;
 using LinkTracker.Scrapper.Domain.Links.Entities;
 using LinkTracker.Scrapper.Errors.Chats;
@@ -17,12 +21,14 @@ public class AddLinkHandler(
     ISubscriptionRepository subscriptionRepository,
     ITagRepository tagRepository,
     IUnitOfWork unitOfWork,
+    IGithubStore githubStore,
+    IStackOverflowStore soStore,
     LinkCheckerResolver checkerResolver,
     ILogger<AddLinkHandler> logger)
 {
     public async Task<Result<LinkResponse>> HandleAsync(AddLinkRequest request, long chatId)
     {
-        var checkerResult = checkerResolver.Resolve(request.Link);
+        var checkerResult = checkerResolver.Resolve(request.Link); // TODO: нужны чекеры
         if (checkerResult.IsFailed)
         {
             return Result.Fail(checkerResult.Errors);
@@ -95,7 +101,38 @@ public class AddLinkHandler(
         }
 
         var newLink = await linkRepository.CreateLink(url, checkerKey);
+        await CreateCoupledSourceTables(newLink.Id, url, checkerKey);
         return Result.Ok(newLink).WithSuccess<Created>();
+    }
+
+    private async Task CreateCoupledSourceTables(long linkId, string url, string checkerKey)
+    {
+        // TODO: унести в домен и сделать нормальную стратегию
+        string[] segments;
+        switch (checkerKey)
+        {
+            case StackOverflowQuestionChecker.ConstKey:
+                segments = ParseSegments(url);
+                await soStore.CreateQuestion(linkId, long.Parse(segments[1]));
+                break;
+            case GithubRepositoryChecker.ConstKey:
+                segments = ParseSegments(url);
+                await githubStore.CreateRepository(linkId, segments[1], segments[0]);
+                break;
+        }
+    }
+
+    private string[] ParseSegments(string url)
+    {
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            return uri.Segments
+             .Select(s => s.TrimEnd('/'))
+             .Where(s => !string.IsNullOrEmpty(s))
+             .ToArray();
+        }
+
+        throw new UnreachableException($"How did we get here? It's impossible: {url}");
     }
 
     private class Created : Success;

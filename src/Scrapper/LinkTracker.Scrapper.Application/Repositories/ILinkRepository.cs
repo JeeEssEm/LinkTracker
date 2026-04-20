@@ -11,6 +11,7 @@ public interface ILinkRepository
     Task<Link?> GetLinkAsync(string url);
     Task<Link> CreateLink(string url, string checkerKey);
     Task<Link?> RemoveLink(string url);
-    Task UpdateCheckDatesAt(long linkId, DateTime checkedAt, DateTime? changeAt = null);
+    Task UpdateCheckDatesAt(long[] linkIds);
     Task<List<LinkCheckEntry>> GetLinksToCheck(int page, int limit, DateTime currentTime);
+    Task RemoveLinksAsync(IEnumerable<long> linkIds);
 }

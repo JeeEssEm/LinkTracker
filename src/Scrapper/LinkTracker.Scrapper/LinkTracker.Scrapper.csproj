@@ -21,7 +21,7 @@
           <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
         <PackageReference Include="Quartz.Extensions.Hosting" Version="3.14.0" />
-        <PackageReference Include="Refit" Version="10.0.1" />
+        <PackageReference Include="Refit" Version="10.1.6" />
         <PackageReference Include="Refit.HttpClientFactory" Version="10.0.1" />
         <PackageReference Include="Seq.Extensions.Logging" Version="9.0.0" />
         <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.6" />
@@ -32,6 +32,7 @@
       <ProjectReference Include="..\..\Contracts\LinkTracker.Contracts.Shared\LinkTracker.Contracts.Shared.csproj" />
       <ProjectReference Include="..\LinkTracker.Scrapper.Application\LinkTracker.Scrapper.Application.csproj" />
       <ProjectReference Include="..\LinkTracker.Scrapper.Contracts\LinkTracker.Scrapper.Contracts.csproj" />
+      <ProjectReference Include="..\LinkTracker.Scrapper.Infrastructure.Common\LinkTracker.Scrapper.Infrastructure.Common.csproj" />
       <ProjectReference Include="..\LinkTracker.Scrapper.Infrastructure.Migrations\LinkTracker.Scrapper.Infrastructure.Migrations.csproj" />
       <ProjectReference Include="..\LinkTracker.Scrapper.Infrastructure.Orm\LinkTracker.Scrapper.Infrastructure.Orm.csproj" />
       <ProjectReference Include="..\LinkTracker.Scrapper.Infrastructure.Sql\LinkTracker.Scrapper.Infrastructure.Sql.csproj" />

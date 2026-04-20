@@ -1,5 +1,7 @@
-﻿using LinkTracker.Scrapper.Application.Abstractions;
+using LinkTracker.Scrapper.Application.Abstractions;
 using LinkTracker.Scrapper.Application.Repositories;
+using LinkTracker.Scrapper.Application.Scraping.Pipelines.Github.Store;
+using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Store;
 using LinkTracker.Scrapper.Infrastructure.Sql.DatabaseConnectionFactory;
 using LinkTracker.Scrapper.Infrastructure.Sql.Repositories;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,6 +27,8 @@ public static class DependencyInjectionDatabaseExtension
         services.AddScoped<ILinkRepository, LinkRepository>();
         services.AddScoped<ITagRepository, TagRepository>();
         services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
+        services.AddScoped<IStackOverflowStore, SqlStackOverflowStore>();
+        services.AddScoped<IGithubStore, SqlGithubStore>();
 
         return services;
     }

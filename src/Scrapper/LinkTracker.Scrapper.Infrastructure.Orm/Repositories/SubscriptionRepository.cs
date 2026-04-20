@@ -82,4 +82,14 @@ public class SubscriptionRepository(LinkTrackerContext dbContext) : ISubscriptio
                 lnk.LinkTags.Select(lt => lt.Tag.Name).ToList())
         ).ToList();
     }
+
+    public async Task<List<long>> GetChatIdsByLinkId(long linkId, int limit, long previousChatId)
+    {
+        return await dbContext.Subscriptions
+            .Where(s => s.LinkId == linkId && s.ChatId > previousChatId)
+            .Select(s => s.ChatId)
+            .OrderBy(id => id)
+            .Take(limit)
+            .ToListAsync();
+    }
 }
