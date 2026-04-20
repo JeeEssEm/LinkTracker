@@ -1,4 +1,4 @@
-﻿using Dapper;
+using Dapper;
 using LinkTracker.Scrapper.Application.Repositories;
 using LinkTracker.Scrapper.Domain.Tag.Entities;
 using LinkTracker.Scrapper.Infrastructure.Sql.ModelExtensions;

@@ -1,19 +1,17 @@
-﻿using LinkTracker.Scrapper.ApiClients;
-using LinkTracker.Scrapper.ApiClients.Abstractions;
-using LinkTracker.Scrapper.ApiClients.BotNotifier;
-using LinkTracker.Scrapper.ApiClients.Shared;
-using LinkTracker.Scrapper.Domain;
-using LinkTracker.Scrapper.Scheduling;
-using FluentResults;
-using LinkTracker.Bot.Contracts.Rest;
-using LinkTracker.Scrapper.ApiClients.BotNotifier.Rest;
 using LinkTracker.Scrapper.Application.Repositories;
 using LinkTracker.Scrapper.Application.Scheduling;
+using LinkTracker.Scrapper.Application.Scraping.Pipelines;
+using LinkTracker.Scrapper.Application.Scraping.Pipelines.Github;
+using LinkTracker.Scrapper.Application.Scraping.Pipelines.Github.Steps;
+using LinkTracker.Scrapper.Application.Scraping.Pipelines.Github.Store;
+using LinkTracker.Scrapper.Application.Scraping.Pipelines.Notifications;
+using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow;
+using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Steps;
+using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Store;
 using LinkTracker.Scrapper.Configurations;
-using LinkTracker.Scrapper.Domain.Chats.Entities;
-using LinkTracker.Scrapper.Domain.Links.Entities;
+using LinkTracker.Scrapper.Scheduling;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using Quartz;
@@ -22,190 +20,94 @@ namespace LinkTracker.Tests.Scrapper.Scheduling;
 
 public class LinkCheckJobTests
 {
-    private readonly ILinkRepository _linkStore;
-    private readonly IBotClient _botClient;
-    private readonly LinkCheckerResolver _resolver;
-    private readonly ILinkChecker _checker;
-    private readonly LinkCheckJob _job;
-    private readonly IJobExecutionContext _context;
-    private readonly IOptions<SchedulerOptions> _schedulerOptions;
-    private readonly ILogger<LinkCheckJob> _logger;
-    private readonly IServiceScopeFactory _serviceScopeFactory;
-
-    public LinkCheckJobTests()
+    [Fact]
+    public async Task Execute_UsesConfiguredBatchSize()
     {
-        _linkStore = Substitute.For<ILinkRepository>();
-        _botClient = Substitute.For<IBotClient>();
-        _checker = Substitute.For<ILinkChecker>();
-        _schedulerOptions = Substitute.For<IOptions<SchedulerOptions>>();
-        _logger = Substitute.For<ILogger<LinkCheckJob>>();
+        // Arrange
+        var linkRepo = Substitute.For<ILinkRepository>();
+        var soStore = Substitute.For<IStackOverflowStore>();
+        var githubStore = Substitute.For<IGithubStore>();
 
-        _schedulerOptions.Value.Returns(new SchedulerOptions());
-        _checker.Key.Returns("github-repository");
-        _checker.CanHandle(Arg.Any<Uri>()).Returns(true);
-
-        _resolver = new LinkCheckerResolver([_checker]);
+        linkRepo.GetLinksToCheck(1, 7, Arg.Any<DateTime>())
+            .Returns(new List<LinkCheckEntry>());
 
         var services = new ServiceCollection();
-        services.AddScoped<LinkCheckJob>();
-        services.AddScoped<ILinkRepository>(_ => _linkStore);
-        services.AddScoped<IBotClient>(_ => _botClient);
-        services.AddScoped<LinkCheckerResolver>(_ => _resolver);
+        services.AddSingleton(linkRepo);
+        services.AddSingleton(soStore);
+        services.AddSingleton(githubStore);
 
-        var serviceProvider = services.BuildServiceProvider();
-        _serviceScopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
+        using var serviceProvider = services.BuildServiceProvider();
 
-        _job = new LinkCheckJob(_linkStore, _serviceScopeFactory, _schedulerOptions, _logger);
-        _context = Substitute.For<IJobExecutionContext>();
+        var stackOverflowOptions = Options.Create(new StackOverflowPipelineOptions());
+        var githubOptions = Options.Create(new GithubPipelineOptions
+        {
+            // Keep timer inert in tests.
+            TimerIntervalSeconds = 3600
+        });
+
+        var soPipeline = BuildStackOverflowPipeline(serviceProvider, stackOverflowOptions);
+        var githubPipeline = BuildGithubPipeline(serviceProvider, githubOptions);
+        var aggregator = new NotificationAggregator(NullLogger<NotificationAggregator>.Instance, serviceProvider);
+        var coordinator = new ScrapingCoordinator(soPipeline, githubPipeline, aggregator, serviceProvider);
+
+        var job = new LinkCheckJob(
+            Options.Create(new SchedulerOptions { BatchSize = 7 }),
+            coordinator);
+
+        var context = Substitute.For<IJobExecutionContext>();
+
+        // Act
+        await job.Execute(context);
+
+        // Assert
+        await linkRepo.Received(1).GetLinksToCheck(1, 7, Arg.Any<DateTime>());
     }
 
-    [Fact]
-    public async Task Execute_UpdateFound_NotifiesBot()
+    private static StackOverflowPipeline BuildStackOverflowPipeline(
+        IServiceProvider serviceProvider,
+        IOptions<StackOverflowPipelineOptions> options)
     {
-        var link = new Link(1, "https://github.com/user/repo", "github-repository");
+        var fetchQuestions = new FetchQuestionsStep(serviceProvider, NullLogger<FetchQuestionsStep>.Instance, options);
+        var clearQuestions = new ClearQuestionsStep(serviceProvider, NullLogger<ClearQuestionsStep>.Instance);
+        var fetchAnswers = new FetchAnswersStep(serviceProvider, NullLogger<FetchAnswersStep>.Instance, options);
+        var clearAnswers = new ClearAnswersStep(serviceProvider, NullLogger<ClearAnswersStep>.Instance);
+        var processAnswers = new ProcessAnswersStep(serviceProvider, NullLogger<ProcessAnswersStep>.Instance);
+        var fetchComments = new FetchCommentsStep(serviceProvider, NullLogger<FetchCommentsStep>.Instance, options);
+        var processComments = new ProcessCommentsStep(serviceProvider, NullLogger<ProcessCommentsStep>.Instance);
+        var fetchQuestionComments = new FetchQuestionCommentsStep(serviceProvider, NullLogger<FetchQuestionCommentsStep>.Instance, options);
+        var processQuestionComments = new ProcessQuestionCommentsStep(serviceProvider, NullLogger<ProcessQuestionCommentsStep>.Instance);
 
-        _linkStore.GetLinksToCheck(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<DateTime>()).Returns([]);
-        _linkStore.GetLinksToCheck(1, Arg.Any<int>(), Arg.Any<DateTime>()).Returns([new LinkCheckEntry(1, link.Url, link.CheckerKey, DateTime.UtcNow, [1])]);
-
-        _checker.CheckAsync(Arg.Any<Uri>(), Arg.Any<DateTime?>())
-            .Returns(new UpdateCheckResult(true, DateTime.UtcNow, "Updated"));
-
-        await _job.Execute(_context);
-
-        await _botClient.Received(1).SendUpdateAsync(Arg.Is<LinkUpdateRequest>(r => r.Url == "https://github.com/user/repo" && r.TgChatIds.Contains(1)));
+        return new StackOverflowPipeline(
+            fetchQuestions,
+            clearQuestions,
+            fetchAnswers,
+            clearAnswers,
+            processAnswers,
+            fetchComments,
+            processComments,
+            fetchQuestionComments,
+            processQuestionComments,
+            options,
+            NullLogger<StackOverflowPipeline>.Instance);
     }
 
-    [Fact]
-    public async Task Execute_NoUpdate_DoesNotNotifyBot()
+    private static GithubPipeline BuildGithubPipeline(
+        IServiceProvider serviceProvider,
+        IOptions<GithubPipelineOptions> options)
     {
-        var link = new Link(1, "https://github.com/user/repo", "github-repository");
+        var fetchIssues = new FetchIssuesStep(serviceProvider, NullLogger<FetchIssuesStep>.Instance, options);
+        var processIssues = new ProcessIssuesStep(serviceProvider, NullLogger<ProcessIssuesStep>.Instance);
+        var fetchPullRequests = new FetchPullRequestsStep(serviceProvider, NullLogger<FetchPullRequestsStep>.Instance, options);
+        var processPullRequests = new ProcessPullRequestsStep(serviceProvider, NullLogger<ProcessPullRequestsStep>.Instance);
+        var processDeletedRepositories = new ProcessDeletedRepositoriesStep(serviceProvider, NullLogger<ProcessDeletedRepositoriesStep>.Instance);
 
-        _linkStore.GetLinksToCheck(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<DateTime>()).Returns([]);
-        _linkStore.GetLinksToCheck(1, Arg.Any<int>(), DateTime.UtcNow).Returns([new LinkCheckEntry(1, link.Url, link.CheckerKey, DateTime.UtcNow, [])]);
-        await _linkStore.UpdateCheckDatesAt(Arg.Any<long>(), Arg.Any<DateTime>(), Arg.Any<DateTime>());
-
-        _checker.CheckAsync(Arg.Any<Uri>(), Arg.Any<DateTime?>())
-            .Returns(new UpdateCheckResult(false, null, ""));
-
-        await _job.Execute(_context);
-
-        await _botClient.DidNotReceive().SendUpdateAsync(Arg.Any<LinkUpdateRequest>());
-    }
-
-    [Fact]
-    public async Task Execute_OnlySubscribedUsersReceiveUpdate()
-    {
-        var link1 = new Link(1, "https://github.com/user/repo", "github-repository");
-        var link3 = new Link(3, "https://github.com/other/project", "github-repository");
-
-        _linkStore.GetLinksToCheck(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<DateTime>()).Returns([]);
-        _linkStore.GetLinksToCheck(1, Arg.Any<int>(), Arg.Any<DateTime>()).Returns([
-            new LinkCheckEntry(1, link1.Url, link1.CheckerKey, DateTime.UtcNow, [1, 2]),
-            new LinkCheckEntry(3, link3.Url, link3.CheckerKey, DateTime.UtcNow, [3])
-        ]);
-
-        _linkStore.UpdateCheckDatesAt(Arg.Any<long>(), Arg.Any<DateTime>(), Arg.Any<DateTime>())
-            .Returns(ci => Task.CompletedTask);
-
-        _checker.CheckAsync(
-                Arg.Is<Uri>(u => u.ToString() == "https://github.com/user/repo"),
-                Arg.Any<DateTime?>())
-            .Returns(new UpdateCheckResult(true, DateTime.UtcNow, "repo updated"));
-
-        _checker.CheckAsync(
-                Arg.Is<Uri>(u => u.ToString() == "https://github.com/other/project"),
-                Arg.Any<DateTime?>())
-            .Returns(new UpdateCheckResult(false, null, ""));
-
-        await _job.Execute(_context);
-
-        await _botClient.Received().SendUpdateAsync(Arg.Is<LinkUpdateRequest>(r => r.Url == "https://github.com/user/repo"
-                                                                                   && r.TgChatIds.Contains(1)
-                                                                                   && r.TgChatIds.Contains(2)
-                                                                                   && !r.TgChatIds.Contains(3)));
-
-        await _botClient.DidNotReceive().SendUpdateAsync(Arg.Is<LinkUpdateRequest>(r => r.Url == "https://github.com/other/project"));
-    }
-
-    [Fact]
-    public async Task Execute_InvalidUrl_SkipsLink()
-    {
-        var link = new Link(1, "not-a-valid-url", "github-repository");
-
-        _linkStore.GetLinksToCheck(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<DateTime>()).Returns([]);
-        _linkStore.GetLinksToCheck(1, Arg.Any<int>(), Arg.Any<DateTime>())
-            .Returns([new LinkCheckEntry(1, link.Url, link.CheckerKey, DateTime.UtcNow, [1])]);
-
-        await _job.Execute(_context);
-
-        await _botClient.DidNotReceive().SendUpdateAsync(Arg.Any<LinkUpdateRequest>());
-    }
-
-    [Fact]
-    public async Task Execute_UnknownCheckerKey_SkipsLink()
-    {
-        var link = new Link(1, "https://github.com/user/repo", "unknown-checker");
-
-        _linkStore.GetLinksToCheck(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<DateTime>()).Returns([]);
-        _linkStore.GetLinksToCheck(1, Arg.Any<int>(), Arg.Any<DateTime>())
-            .Returns([new LinkCheckEntry(1, link.Url, link.CheckerKey, DateTime.UtcNow, [])]);
-
-        await _job.Execute(_context);
-
-        await _botClient.DidNotReceive().SendUpdateAsync(Arg.Any<LinkUpdateRequest>());
-    }
-
-    [Fact]
-    public async Task Execute_CheckerThrows_ContinuesWithNextLink()
-    {
-        var link1 = new Link(1, "https://github.com/user/repo1", "github-repository");
-        var link2 = new Link(2, "https://github.com/user/repo2", "github-repository");
-
-        _linkStore.GetLinksToCheck(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<DateTime>()).Returns([]);
-        _linkStore.GetLinksToCheck(1, Arg.Any<int>(), Arg.Any<DateTime>()).Returns(
-            [
-                new LinkCheckEntry(1, link1.Url, link1.CheckerKey, DateTime.UtcNow, []),
-                new LinkCheckEntry(2, link2.Url, link2.CheckerKey, DateTime.UtcNow, [])
-            ]
-        );
-
-        _linkStore.UpdateCheckDatesAt(Arg.Any<long>(), Arg.Any<DateTime>(), Arg.Any<DateTime>())
-            .Returns(_ => Task.CompletedTask);
-
-        _checker.CheckAsync(
-                Arg.Is<Uri>(u => u.AbsolutePath.Contains("repo1")),
-                Arg.Any<DateTime?>())
-            .Returns(_ => Result.Fail("some api error"));
-
-        _checker.CheckAsync(
-                Arg.Is<Uri>(u => u.AbsolutePath.Contains("repo2")),
-                Arg.Any<DateTime?>())
-            .Returns(new UpdateCheckResult(true, DateTime.UtcNow, "Updated"));
-
-        await _job.Execute(_context);
-
-        await _botClient.Received().SendUpdateAsync(Arg.Is<LinkUpdateRequest>(r => r.Url == "https://github.com/user/repo2"));
-    }
-
-    [Fact]
-    public async Task Execute_BotNotificationFails_DoesNotCrash()
-    {
-        var link = new Link(1, "https://github.com/user/repo", "github-repository");
-
-        _linkStore.GetLinksToCheck(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<DateTime>()).Returns([]);
-        _linkStore.GetLinksToCheck(1, Arg.Any<int>(), Arg.Any<DateTime>())
-            .Returns([new LinkCheckEntry(1, link.Url, link.CheckerKey, DateTime.UtcNow, [1])]);
-
-        _linkStore.UpdateCheckDatesAt(Arg.Any<long>(), Arg.Any<DateTime>(), Arg.Any<DateTime>())
-            .Returns(_ => Task.CompletedTask);
-
-        _checker.CheckAsync(Arg.Any<Uri>(), Arg.Any<DateTime?>())
-            .Returns(new UpdateCheckResult(true, DateTime.UtcNow, "Updated"));
-
-        _botClient.SendUpdateAsync(Arg.Any<LinkUpdateRequest>()).Returns(Result.Fail("any error"));
-
-        await _job.Execute(_context);
-
-        await _linkStore.Received().UpdateCheckDatesAt(1, Arg.Any<DateTime>(), Arg.Any<DateTime>());
+        return new GithubPipeline(
+            fetchIssues,
+            processIssues,
+            fetchPullRequests,
+            processPullRequests,
+            processDeletedRepositories,
+            NullLogger<GithubPipeline>.Instance,
+            options);
     }
 }

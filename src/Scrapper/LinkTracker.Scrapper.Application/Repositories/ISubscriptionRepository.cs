@@ -11,4 +11,5 @@ public interface ISubscriptionRepository
     Task<SubscribedLink?> GetSubscriptionAsync(long chatId, long linkId);
     Task<SubscribedLink?> GetSubscriptionAsync(long chatId, string url);
     Task<List<SubscribedLink>> GetSubscriptionsByChatAsync(long chatId);
+    Task<List<long>> GetChatIdsByLinkId(long linkId, int limit, long previousId);
 }

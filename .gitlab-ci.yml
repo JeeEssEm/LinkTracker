@@ -35,7 +35,7 @@ module_test:
       allow_failure: false
     - when: never
   script:
-    - dotnet test --filter "FullyQualifiedName!~LinkTracker.Tests.Scrapper.Repositories&FullyQualifiedName!~LinkTracker.Tests.Scrapper.Api"
+    - dotnet test --filter "FullyQualifiedName!~LinkTracker.Tests.Scrapper.Repositories&FullyQualifiedName!~LinkTracker.Tests.Scrapper.Api&FullyQualifiedName!~LinkTracker.Tests.Scrapper.Pipelines.Integration"
 
 integration_test:
   image: mcr.microsoft.com/dotnet/sdk:9.0
@@ -63,6 +63,6 @@ integration_test:
     - curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-27.3.1.tgz | tar -xz --strip-components=1 -C /usr/local/bin docker/docker
     - echo "$CI_JOB_TOKEN" | docker login gitlab.education.tbank.ru:443 -u gitlab-ci-token --password-stdin
   script:
-    - dotnet test --filter "FullyQualifiedName~LinkTracker.Tests.Scrapper.Repositories|FullyQualifiedName~LinkTracker.Tests.Scrapper.Api"
+    - dotnet test --filter "FullyQualifiedName~LinkTracker.Tests.Scrapper.Repositories|FullyQualifiedName~LinkTracker.Tests.Scrapper.Api|FullyQualifiedName~LinkTracker.Tests.Scrapper.Pipelines.Integration"
 
   

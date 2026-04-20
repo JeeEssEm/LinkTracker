@@ -1,4 +1,4 @@
-﻿using Dapper;
+using Dapper;
 using LinkTracker.Scrapper.Application.Repositories;
 using LinkTracker.Scrapper.Application.Scheduling;
 using LinkTracker.Scrapper.Infrastructure.Sql.ModelExtensions;
@@ -38,18 +38,17 @@ public class LinkRepository(DatabaseSession dbSession) : ILinkRepository
         return link?.ToDomain();
     }
 
-    public async Task UpdateCheckDatesAt(long linkId, DateTime checkedAt, DateTime? changeAt = null)
+    public async Task UpdateCheckDatesAt(long[] linkIds)
     {
         var dbConnection = await dbSession.GetConnectionAsync();
-        var query =
-            """
-            UPDATE links
-            SET last_check_at = @checkedAt,
-                last_change_at = COALESCE(@changeAt, last_change_at)
-            WHERE id = @linkId
-            """;
+        var now = DateTime.UtcNow;
 
-        await dbConnection.ExecuteAsync(query, new { linkId, checkedAt, changeAt }, transaction: dbSession.Transaction);
+        var query = @"
+        UPDATE links 
+        SET last_check_at = @now 
+        WHERE id = ANY(@linkIds)";
+
+        await dbConnection.ExecuteAsync(query, new { linkIds, now }, transaction: dbSession.Transaction);
     }
 
     public async Task<List<LinkCheckEntry>> GetLinksToCheck(int page, int limit, DateTime currentTime)
@@ -59,14 +58,14 @@ public class LinkRepository(DatabaseSession dbSession) : ILinkRepository
         var query =
             """
             WITH paginated_links AS (
-                SELECT id, url, checker_key, last_check_at, last_change_at FROM links
+                SELECT id, url, checker_key, last_check_at FROM links
+                WHERE last_check_at < @currentTime OR last_check_at IS NULL
                 ORDER BY last_check_at
                 OFFSET @skip
                 LIMIT @limit
             )
             SELECT l.*, sub.chat_id AS chat_id FROM paginated_links AS l
                 INNER JOIN subscriptions AS sub ON sub.link_id = l.id
-            WHERE l.last_check_at < @currentTime OR l.last_check_at IS NULL
             """;
 
         var result = new Dictionary<long, Tuple<LinkCheckEntry, List<long>>>();
@@ -74,14 +73,27 @@ public class LinkRepository(DatabaseSession dbSession) : ILinkRepository
         {
             if (!result.TryGetValue(link.Id, out var linkEntry))
             {
-                linkEntry = Tuple.Create(new LinkCheckEntry(link.Id, link.Url, link.CheckerKey, link.LastChangeAt, []), new List<long>());
+                linkEntry = Tuple.Create(new LinkCheckEntry(link.Id, link.Url, link.CheckerKey, link.LastCheckAt, []), new List<long>());
                 result.Add(link.Id, linkEntry);
             }
+
             linkEntry.Item2.Add(chatId);
 
             return linkEntry.Item1;
         }, new { skip, limit, currentTime }, splitOn: "chat_id", transaction: dbSession.Transaction);
 
         return result.Values.Select(t => t.Item1 with { ChatIdsToNotify = t.Item2 }).ToList();
+    }
+
+    public async Task RemoveLinksAsync(IEnumerable<long> linkIds)
+    {
+        var dbConnection = await dbSession.GetConnectionAsync();
+        var query =
+            """
+            DELETE FROM links
+            WHERE id = ANY(@linkIds)
+            """;
+
+        await dbConnection.ExecuteAsync(query, new { linkIds = linkIds.ToArray() }, transaction: dbSession.Transaction);
     }
 }

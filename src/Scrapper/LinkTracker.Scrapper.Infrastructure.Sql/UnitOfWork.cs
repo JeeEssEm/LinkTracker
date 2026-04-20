@@ -1,4 +1,4 @@
-﻿using LinkTracker.Scrapper.Application.Abstractions;
+using LinkTracker.Scrapper.Application.Abstractions;
 
 namespace LinkTracker.Scrapper.Infrastructure.Sql;
 

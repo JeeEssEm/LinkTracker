@@ -1,5 +1,7 @@
 ﻿using LinkTracker.Scrapper.Application.Abstractions;
 using LinkTracker.Scrapper.Application.Repositories;
+using LinkTracker.Scrapper.Application.Scraping.Pipelines.Github.Store;
+using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Store;
 using LinkTracker.Scrapper.Infrastructure.Orm.Context;
 using LinkTracker.Scrapper.Infrastructure.Orm.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -25,6 +27,8 @@ public static class DependencyInjectionDatabaseExtension
         services.AddScoped<IChatRepository, ChatRepository>();
         services.AddScoped<ITagRepository, TagRepository>();
         services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
+        services.AddScoped<IStackOverflowStore, OrmStackOverflowStore>();
+        services.AddScoped<IGithubStore, OrmGithubStore>();
 
         return services;
     }

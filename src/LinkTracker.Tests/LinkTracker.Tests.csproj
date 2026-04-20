@@ -15,6 +15,8 @@
         <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.10" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0"/>
         <PackageReference Include="NSubstitute" Version="5.3.0" />
+        <PackageReference Include="Refit" Version="10.1.6" />
+        <PackageReference Include="Refit.HttpClientFactory" Version="10.1.6" />
         <PackageReference Include="Testcontainers.PostgreSql" Version="4.11.0" />
         <PackageReference Include="xunit" Version="2.5.3"/>
         <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3"/>
@@ -32,7 +34,12 @@
       <ProjectReference Include="..\Bot\LinkTracker.Bot.App\LinkTracker.Bot.App.csproj" />
       <ProjectReference Include="..\Scrapper\LinkTracker.Scrapper.Domain\LinkTracker.Scrapper.Domain.csproj" />
       <ProjectReference Include="..\Scrapper\LinkTracker.Scrapper.Errors\LinkTracker.Scrapper.Errors.csproj" />
+      <ProjectReference Include="..\Scrapper\LinkTracker.Scrapper.Infrastructure.Common\LinkTracker.Scrapper.Infrastructure.Common.csproj" />
       <ProjectReference Include="..\Scrapper\LinkTracker.Scrapper\LinkTracker.Scrapper.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Scrapper\Pipelines\" />
     </ItemGroup>
 
 </Project>

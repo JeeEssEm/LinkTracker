@@ -8,10 +8,14 @@
 
     <ItemGroup>
       <PackageReference Include="FluentResults" Version="4.0.0" />
+      <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.5" />
+      <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.5" />
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\..\Bot\LinkTracker.Bot.Contracts\LinkTracker.Bot.Contracts.csproj" />
       <ProjectReference Include="..\LinkTracker.Scrapper.Domain\LinkTracker.Scrapper.Domain.csproj" />
+      <ProjectReference Include="..\LinkTracker.Scrapper.Errors\LinkTracker.Scrapper.Errors.csproj" />
     </ItemGroup>
 
 </Project>

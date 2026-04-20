@@ -1,4 +1,4 @@
-﻿using Dapper;
+using Dapper;
 using LinkTracker.Scrapper.Application.ReadModels;
 using LinkTracker.Scrapper.Application.Repositories;
 
@@ -117,6 +117,20 @@ public class SubscriptionRepository(DatabaseSession dbSession) : ISubscriptionRe
                 LEFT JOIN tags AS t ON t.chat_id = @chatId AND t.id = lt.tag_id
             """;
         return await FetchSubscriptionsAsync(query, new { chatId }, "tag_id");
+    }
+
+    public async Task<List<long>> GetChatIdsByLinkId(long linkId, int limit, long previousChatId)
+    {
+        var dbConnection = await dbSession.GetConnectionAsync();
+        var query =
+            """
+            SELECT chat_id FROM subscriptions WHERE link_id = @linkId AND chat_id > @previousChatId
+            ORDER BY chat_id
+            LIMIT @limit
+            """;
+        var res = await dbConnection.QueryAsync<long>(query, new { linkId, previousChatId, limit });
+
+        return res.ToList();
     }
 
     private async Task<List<SubscribedLink>> FetchSubscriptionsAsync(string query, object param, string splitOn)
