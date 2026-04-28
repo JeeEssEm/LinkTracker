@@ -8,10 +8,12 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <PackageReference Include="Confluent.Kafka" Version="2.14.0" />
       <PackageReference Include="Refit" Version="10.1.6" />
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\..\Contracts\LinkTracker.Contracts.Broker\LinkTracker.Contracts.Broker.csproj" />
       <ProjectReference Include="..\LinkTracker.Scrapper.Application\LinkTracker.Scrapper.Application.csproj" />
     </ItemGroup>
 

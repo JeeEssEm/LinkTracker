@@ -1,9 +1,9 @@
 using LinkTracker.Scrapper.Application.Repositories;
-using LinkTracker.Scrapper.Application.Scraping.Pipelines.Notifications;
-using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Data;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Results;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Store;
-using System.Threading.Tasks.Dataflow;
+using LinkTracker.Bot.Contracts.Rest;
+using LinkTracker.Scrapper.Application.Abstractions;
+using LinkTracker.Scrapper.Application.Dtos.Outbox;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -15,15 +15,16 @@ public class ProcessQuestionCommentsStep(
 {
     private const int PreviewLength = 200;
 
-    public async Task ProcessAsync(
-        FetchQuestionCommentsResult result,
-        ITargetBlock<NotificationMessage> aggregator)
+    public async Task ProcessAsync(FetchQuestionCommentsResult result)
     {
         try
         {
             await using var scope = serviceProvider.CreateAsyncScope();
             var store = scope.ServiceProvider.GetRequiredService<IStackOverflowStore>();
-            var subRepo = scope.ServiceProvider.GetRequiredService<ISubscriptionRepository>();
+            var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var outboxRepo = scope.ServiceProvider.GetRequiredService<IOutboxEventRepository>();
+
+            await uow.BeginAsync();
 
             await SyncDeletedAsync(store, result);
 
@@ -37,14 +38,29 @@ public class ProcessQuestionCommentsStep(
             logger.LogInformation(
                 "ProcessQuestionComments: total={Total}, new={New}, missingQuestions={Missing}",
                 result.ReceivedComments.Count, newComments.Length, result.MissingQuestionIds.Count);
-
+            var events = new List<CreateOutboxEvent>();
             foreach (var comment in newComments)
             {
                 if (!comment.Question.Link.IsFirstCheck)
                 {
-                    await NotifyAsync(comment, subRepo, aggregator);
+                    events.Add(new CreateOutboxEvent(new LinkUpdateRequest(
+                        comment.Question.Link.Id,
+                        comment.Question.Link.Url,
+                        $"""
+                         📌 {comment.Question.Link.Url} 
+
+                         💬 Новый комментарий от {comment.OwnerDisplayName} ({comment.CreatedAt:dd.MM.yyyy HH:mm} UTC)
+                         {comment.Question.Title}
+                         {Truncate(comment.Body, PreviewLength)}
+                         """,
+                        comment.Question.Link.ChatIdsToNotify
+                        )
+                    ));
                 }
             }
+
+            await outboxRepo.CreateAsync(events);
+            await uow.CommitAsync();
         }
         catch (Exception ex)
         {
@@ -65,29 +81,6 @@ public class ProcessQuestionCommentsStep(
         {
             await store.RemoveQuestionCommentsByQuestionIds(result.MissingQuestionIds);
         }
-    }
-
-    private static async Task NotifyAsync(
-        QuestionCommentData comment,
-        ISubscriptionRepository subRepo,
-        ITargetBlock<NotificationMessage> aggregator)
-    {
-        var link = comment.Question.Link;
-        if (link.ChatIdsToNotify.Count == 0)
-        {
-            return;
-        }
-
-        var text =
-            $"""
-             📌 {comment.Question.Title}
-
-             💬 Новый комментарий от {comment.OwnerDisplayName} ({comment.CreatedAt:dd.MM.yyyy HH:mm} UTC)
-
-             {Truncate(comment.Body, PreviewLength)}
-             """;
-
-        await aggregator.SendAsync(new NotificationMessage(link.ChatIdsToNotify, text, link.Url, link.Id));
     }
 
     private static string Truncate(string text, int maxLength) =>

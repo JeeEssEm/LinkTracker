@@ -47,8 +47,7 @@ public class LinkCheckJobTests
 
         var soPipeline = BuildStackOverflowPipeline(serviceProvider, stackOverflowOptions);
         var githubPipeline = BuildGithubPipeline(serviceProvider, githubOptions);
-        var aggregator = new NotificationAggregator(NullLogger<NotificationAggregator>.Instance, serviceProvider);
-        var coordinator = new ScrapingCoordinator(soPipeline, githubPipeline, aggregator, serviceProvider);
+        var coordinator = new ScrapingCoordinator(soPipeline, githubPipeline, serviceProvider);
 
         var job = new LinkCheckJob(
             Options.Create(new SchedulerOptions { BatchSize = 7 }),

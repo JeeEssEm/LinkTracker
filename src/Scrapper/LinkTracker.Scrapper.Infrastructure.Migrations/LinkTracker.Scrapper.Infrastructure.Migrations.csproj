@@ -25,6 +25,9 @@
         <EmbeddedResource Include="..\..\..\migrations\004-github.sql">
             <Link>Migrations\004-github.sql</Link>
         </EmbeddedResource>
+        <EmbeddedResource Include="..\..\..\migrations\005-outbox.sql">
+            <Link>Migrations\005-outbox.sql</Link>
+        </EmbeddedResource>
     </ItemGroup>
 
     <ItemGroup>

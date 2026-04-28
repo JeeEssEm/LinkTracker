@@ -12,15 +12,20 @@ namespace LinkTracker.Tests.Bot;
 
 public class BotWebApplicationFactory : WebApplicationFactory<LinkTracker.Bot.App.Program>
 {
+    public ITelegramBotClient BotMock { get; } = Substitute.For<ITelegramBotClient>();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
+        if (builder.GetSetting("KafkaConsumerOptions:KafkaConsumerEnabled") == null)
+        {
+            builder.UseSetting("KafkaConsumerOptions:KafkaConsumerEnabled", "false");
+        }
+
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<ITelegramBotClient>();
-
-            var mockBot = Substitute.For<ITelegramBotClient>();
-            services.AddSingleton(mockBot);
+            services.AddSingleton(BotMock);
         });
     }
 }

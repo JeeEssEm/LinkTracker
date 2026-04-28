@@ -1,10 +1,14 @@
 using System.Threading;
 using System.Threading.Tasks;
+using LinkTracker.Scrapper.Application.Dtos.Outbox;
 
 namespace LinkTracker.Scrapper.Application.Scraping.Pipelines.Notifications;
 
 public interface INotificationStrategy
 {
-    string TransportName { get; }
-    Task SendAsync(NotificationMessage[] messages, CancellationToken ct);
+    Task<SendResult> SendAsync(OutboxEvent[] events, CancellationToken ct);
 }
+
+public record SendResult(IReadOnlyList<long> DeliveredIds, IReadOnlyList<FailedToDeliver> FailedToDelivers);
+
+public record FailedToDeliver(long Id, string Error);

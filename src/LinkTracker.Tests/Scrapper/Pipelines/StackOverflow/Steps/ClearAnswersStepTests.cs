@@ -29,7 +29,7 @@ public class ClearAnswersStepTests
         var answer = PipelineTestData.Answer(question, answerId: 201);
         var batch = new FetchAnswersResult([answer], []);
 
-        var result = await sut.ProcessAsync(batch, output);
+        var result = await sut.ProcessAsync(batch);
 
         Assert.Single(result);
         await store.Received(1)

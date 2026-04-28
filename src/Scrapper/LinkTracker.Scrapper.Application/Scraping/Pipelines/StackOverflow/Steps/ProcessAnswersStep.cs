@@ -1,6 +1,7 @@
-﻿using System.Threading.Tasks.Dataflow;
+﻿using LinkTracker.Bot.Contracts.Rest;
+using LinkTracker.Scrapper.Application.Abstractions;
+using LinkTracker.Scrapper.Application.Dtos.Outbox;
 using LinkTracker.Scrapper.Application.Repositories;
-using LinkTracker.Scrapper.Application.Scraping.Pipelines.Notifications;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.Shared;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Data;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Store;
@@ -15,9 +16,7 @@ public class ProcessAnswersStep(
 {
     private const int PreviewLength = 200;
 
-    public async Task ProcessAsync(
-        IReadOnlyList<AnswerData> batch,
-        ITargetBlock<NotificationMessage> aggregator)
+    public async Task ProcessAsync(IReadOnlyList<AnswerData> batch)
     {
         if (batch.Count == 0)
         {
@@ -28,6 +27,10 @@ public class ProcessAnswersStep(
         {
             await using var scope = serviceProvider.CreateAsyncScope();
             var store = scope.ServiceProvider.GetRequiredService<IStackOverflowStore>();
+            var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var outboxRepo = scope.ServiceProvider.GetRequiredService<IOutboxEventRepository>();
+
+            await uow.BeginAsync();
 
             var newAnswers = await store.CreateAndReturnIfNotExist(batch.ToArray());
 
@@ -35,39 +38,31 @@ public class ProcessAnswersStep(
                 "ProcessAnswers: total={Total}, new={New}",
                 batch.Count, newAnswers.Length);
 
+            var events = new List<CreateOutboxEvent>();
             foreach (var answer in newAnswers)
             {
                 if (!answer.Question.Link.IsFirstCheck)
                 {
-                    await NotifyAsync(answer, aggregator);
+                    events.Add(new CreateOutboxEvent(new LinkUpdateRequest(
+                        answer.Question.Link.Id,
+                        answer.Question.Link.Url,
+                        $"""
+                         📌 {answer.Question.Link.Url}
+
+                         💬 Новый ответ от {answer.OwnerDisplayName} ({answer.CreatedAt:dd.MM.yyyy HH:mm} UTC)
+                         {answer.Question.Title}
+                         {TextUtilities.Truncate(answer.Body, PreviewLength)}
+                         """,
+                        answer.Question.Link.ChatIdsToNotify
+                        )));
                 }
             }
+            await outboxRepo.CreateAsync(events);
+            await uow.CommitAsync();
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to process answers batch");
         }
-    }
-
-    private static async Task NotifyAsync(
-        AnswerData answer,
-        ITargetBlock<NotificationMessage> aggregator)
-    {
-        var link = answer.Question.Link;
-        if (link.ChatIdsToNotify.Count == 0)
-        {
-            return;
-        }
-
-        var text =
-            $"""
-             📌 {answer.Question.Title}
-
-             💬 Новый ответ от {answer.OwnerDisplayName} ({answer.CreatedAt:dd.MM.yyyy HH:mm} UTC)
-
-             {TextUtilities.Truncate(answer.Body, PreviewLength)}
-             """;
-
-        await aggregator.SendAsync(new NotificationMessage(link.ChatIdsToNotify, text, answer.Question.Link.Url, answer.Question.Link.Id));
     }
 }

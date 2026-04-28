@@ -1,8 +1,8 @@
 ﻿using System.Runtime.CompilerServices;
-using System.Threading.Tasks.Dataflow;
+using LinkTracker.Bot.Contracts.Rest;
 using LinkTracker.Scrapper.Application.Abstractions;
+using LinkTracker.Scrapper.Application.Dtos.Outbox;
 using LinkTracker.Scrapper.Application.Repositories;
-using LinkTracker.Scrapper.Application.Scraping.Pipelines.Notifications;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Data;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Results;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Store;
@@ -16,8 +16,7 @@ public class ClearQuestionsStep(
     ILogger<ClearQuestionsStep> logger)
 {
     public async Task<IReadOnlyList<QuestionData>> ProcessAsync(
-        FetchQuestionsResult result,
-        ITargetBlock<NotificationMessage> aggregator)
+        FetchQuestionsResult result)
     {
         if (result.BannedQuestions.Count == 0)
         {
@@ -26,10 +25,11 @@ public class ClearQuestionsStep(
 
         try
         {
+            // TODO: сделать сами шаги scoped, чтоб не париться с зависимостями
             await using var scope = serviceProvider.CreateAsyncScope();
             var store = scope.ServiceProvider.GetRequiredService<IStackOverflowStore>();
             var linkRepo = scope.ServiceProvider.GetRequiredService<ILinkRepository>();
-            var subRepo = scope.ServiceProvider.GetRequiredService<ISubscriptionRepository>();
+            var outboxRepo = scope.ServiceProvider.GetRequiredService<IOutboxEventRepository>();
             var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
             await uow.BeginAsync();
@@ -37,9 +37,9 @@ public class ClearQuestionsStep(
             await store.RemoveQuestionsByIds(result.BannedQuestions.Select(q => q.Id));
             await linkRepo.RemoveLinksAsync(result.BannedQuestions.Select(q => q.Link.Id));
 
-            await uow.CommitAsync();
+            await NotifyBannedAsync(result.BannedQuestions, outboxRepo);
 
-            await NotifyBannedAsync(result.BannedQuestions, subRepo, aggregator);
+            await uow.CommitAsync();
 
             logger.LogInformation("ClearQuestions: removed {Count} banned questions", result.BannedQuestions.Count);
         }
@@ -53,16 +53,11 @@ public class ClearQuestionsStep(
 
     private static async Task NotifyBannedAsync(
         IReadOnlyList<QuestionData> bannedQuestions,
-        ISubscriptionRepository subRepo,
-        ITargetBlock<NotificationMessage> aggregator)
+        IOutboxEventRepository outboxRepo)
     {
-        foreach (var q in bannedQuestions)
-        {
-            await aggregator.SendAsync(new NotificationMessage(
-                q.Link.ChatIdsToNotify,
-                $"Ваша ссылка больше не отслеживается, так как она не существует на StackOverflow",
-                q.Link.Url,
-                q.Link.Id));
-        }
+        var events = bannedQuestions.Select(q => new CreateOutboxEvent(
+            new LinkUpdateRequest(q.Link.Id, q.Link.Url, "Ваша ссылка больше не отслеживается, так как она не существует на StackOverflow", q.Link.ChatIdsToNotify)
+        ));
+        await outboxRepo.CreateAsync(events);
     }
 }

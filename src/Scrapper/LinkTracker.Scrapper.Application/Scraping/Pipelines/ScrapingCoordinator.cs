@@ -19,28 +19,21 @@ public class ScrapingCoordinator
 {
     private readonly StackOverflowPipeline _soPipeline;
     private readonly GithubPipeline _githubPipeline;
-    private readonly NotificationAggregator _aggregator;
     private readonly IServiceProvider _serviceProvider;
 
     public ScrapingCoordinator(
         StackOverflowPipeline soPipeline,
         GithubPipeline githubPipeline,
-        NotificationAggregator aggregator,
         IServiceProvider serviceProvider
         )
     {
         _soPipeline = soPipeline;
         _githubPipeline = githubPipeline;
-        _aggregator = aggregator;
         _serviceProvider = serviceProvider;
-
-        _soPipeline.OutputBlock.LinkTo(aggregator.InputBlock, new DataflowLinkOptions { PropagateCompletion = false });
-        _githubPipeline.OutputBlock.LinkTo(aggregator.InputBlock, new DataflowLinkOptions { PropagateCompletion = false });
     }
 
     public async Task RunIterationAsync(int batchSize)
     {
-        _aggregator.Trigger(); // если застоялись в батче с прошлого прогона, то надо в начале следующего прогона протолкнуть его
         var now = DateTime.UtcNow;
 
         await using var scope = _serviceProvider.CreateAsyncScope();

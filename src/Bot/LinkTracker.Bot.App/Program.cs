@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using Confluent.Kafka;
 using LinkTracker.Bot.App;
 using LinkTracker.Bot.App.ApiClients.Scrapper;
 using LinkTracker.Bot.App.ApiClients.Scrapper.Grpc;
@@ -13,6 +14,7 @@ using LinkTracker.Bot.Contracts.GrpcErrorProfiles;
 using LinkTracker.Bot.Core.DependencyInjectionExtensions;
 using LinkTracker.Bot.Core.Middlewares;
 using LinkTracker.Bot.Core.StateMachine.Abstractions;
+using LinkTracker.Contracts.Broker;
 using LinkTracker.Contracts.GrpcErrors;
 using LinkTracker.Scrapper.Contracts.GrpcErrorProfiles;
 using LinkTracker.Scrapper.Grpc.Chats;
@@ -25,6 +27,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<BotOptions>(builder.Configuration.GetSection(BotOptions.Position));
 builder.Services.Configure<ScrapperClientOptions>(builder.Configuration.GetSection(ScrapperClientOptions.Position));
+builder.Services.Configure<KafkaConsumerOptions>(builder.Configuration.GetSection(KafkaConsumerOptions.Position));
+builder.Services.Configure<TopicConfiguration>(builder.Configuration.GetSection(TopicConfiguration.Position));
 
 builder.Services
     .AddHttpClient("telegram_bot_client")
@@ -87,6 +91,25 @@ else
             c.BaseAddress = new Uri(scrapperConfig.BaseUrl);
         });
     builder.Services.AddScoped<IScrapperClient, ScrapperRestAdapter>();
+}
+
+var consumerOptions = builder.Configuration
+    .GetSection(KafkaConsumerOptions.Position)
+    .Get<KafkaConsumerOptions>();
+if (consumerOptions == null)
+{
+    throw new ArgumentException("Kafka consumer options are not set!");
+}
+if (consumerOptions.KafkaConsumerEnabled)
+{
+    builder.Services.AddSingleton<ConsumerConfig>(_ => new ConsumerConfig()
+    {
+        BootstrapServers = consumerOptions.BootstrapServers,
+        GroupId = consumerOptions.GroupId,
+        AutoOffsetReset = AutoOffsetReset.Latest,
+        BrokerAddressFamily = BrokerAddressFamily.V4
+    });
+    builder.Services.AddHostedService<ConsumerNotifierService>();
 }
 
 var app = builder.Build();

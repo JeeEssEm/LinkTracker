@@ -60,7 +60,7 @@ public class FetchQuestionCommentsStep(
     {
         var comments = new List<QuestionCommentData>();
         var page = 1;
-
+        // TODO: переделать такой постраничный фетч
         while (true)
         {
             var result = await client.GetQuestionComments(questionIds, page, _options.ApiPageSize);

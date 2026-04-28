@@ -6,6 +6,7 @@ using LinkTracker.Scrapper.Infrastructure.Orm.Context;
 using LinkTracker.Scrapper.Infrastructure.Orm.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 
 namespace LinkTracker.Scrapper.Infrastructure.Orm;
 
@@ -15,7 +16,10 @@ public static class DependencyInjectionDatabaseExtension
     {
         services.AddDbContext<LinkTrackerContext>(options =>
         {
-            options.UseNpgsql(connectionString).UseSnakeCaseNamingConvention();
+            var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
+            dataSourceBuilder.EnableDynamicJson();
+            var dataSource = dataSourceBuilder.Build();
+            options.UseNpgsql(dataSource).UseSnakeCaseNamingConvention();
         });
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         return services;
@@ -28,6 +32,7 @@ public static class DependencyInjectionDatabaseExtension
         services.AddScoped<ITagRepository, TagRepository>();
         services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
         services.AddScoped<IStackOverflowStore, OrmStackOverflowStore>();
+        services.AddScoped<IOutboxEventRepository, OrmOutboxRepository>();
         services.AddScoped<IGithubStore, OrmGithubStore>();
 
         return services;

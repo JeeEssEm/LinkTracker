@@ -44,7 +44,7 @@ public class StackOverflowPipeline
             async batch => await fetchQuestions.ProcessAsync(batch), dataflowOptions);
 
         var clearQuestionsBlock = new TransformBlock<FetchQuestionsResult, IReadOnlyList<QuestionData>>(
-            async result => await clearQuestions.ProcessAsync(result, outputBuffer), dataflowOptions);
+            async result => await clearQuestions.ProcessAsync(result), dataflowOptions);
 
         var broadcastQuestionsBlock = new BroadcastBlock<IReadOnlyList<QuestionData>>(
             questions => questions, new DataflowBlockOptions { BoundedCapacity = DataflowBlockOptions.Unbounded });
@@ -53,25 +53,25 @@ public class StackOverflowPipeline
             async questions => await fetchQuestionComments.ProcessAsync(questions), dataflowOptions);
 
         var processQuestionCommentsBlock = new ActionBlock<FetchQuestionCommentsResult>(
-            async result => await processQuestionComments.ProcessAsync(result, outputBuffer), dataflowOptions);
+            async result => await processQuestionComments.ProcessAsync(result), dataflowOptions);
 
         var fetchAnswersBlock = new TransformManyBlock<IReadOnlyList<QuestionData>, FetchAnswersResult>(
             async batch => await fetchAnswers.ProcessAsync(batch), dataflowOptions);
 
         var clearAnswersBlock = new TransformBlock<FetchAnswersResult, IReadOnlyList<AnswerData>>(
-            async result => await clearAnswers.ProcessAsync(result, outputBuffer), dataflowOptions);
+            async result => await clearAnswers.ProcessAsync(result), dataflowOptions);
 
         var broadcastAnswersBlock = new BroadcastBlock<IReadOnlyList<AnswerData>>(
             answers => answers, new DataflowBlockOptions { BoundedCapacity = DataflowBlockOptions.Unbounded });
 
         var processAnswersBlock = new ActionBlock<IReadOnlyList<AnswerData>>(
-            async answers => await processAnswers.ProcessAsync(answers, outputBuffer), dataflowOptions);
+            async answers => await processAnswers.ProcessAsync(answers), dataflowOptions);
 
         var fetchCommentsBlock = new TransformBlock<IReadOnlyList<AnswerData>, FetchCommentsResult>(
             async answers => await fetchComments.ProcessAsync(answers), dataflowOptions);
 
         var processCommentsBlock = new ActionBlock<FetchCommentsResult>(
-            async result => await processComments.ProcessAsync(result, outputBuffer), dataflowOptions);
+            async result => await processComments.ProcessAsync(result), dataflowOptions);
 
         var linkOptions = new DataflowLinkOptions { PropagateCompletion = false };
 
