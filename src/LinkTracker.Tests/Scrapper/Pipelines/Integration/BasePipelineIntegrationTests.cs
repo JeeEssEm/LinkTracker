@@ -1,4 +1,7 @@
+using System.Text.Json;
 using FluentResults;
+using LinkTracker.Bot.Contracts.Rest;
+using LinkTracker.Scrapper.Application.Dtos.Outbox;
 using LinkTracker.Scrapper.Application.Repositories;
 using LinkTracker.Scrapper.Application.Scheduling;
 using LinkTracker.Scrapper.Application.Scraping.ApiClients.Github;
@@ -32,6 +35,7 @@ public abstract class BasePipelineIntegrationTests(
     private readonly IStackOverflowClient _stackOverflowClient = Substitute.For<IStackOverflowClient>();
     private readonly InMemoryNotificationStrategy _notificationStrategy = new();
 
+    private Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory<LinkTracker.Scrapper.Program> _testHost;
     private AsyncServiceScope _scope;
 
     private static long _seed = 100_000;
@@ -46,28 +50,27 @@ public abstract class BasePipelineIntegrationTests(
 
     public async Task InitializeAsync()
     {
-        var testHost = factory.WithWebHostBuilder(builder =>
+        _testHost = factory.WithWebHostBuilder(builder =>
         {
             builder.UseSetting("DatabaseOptions:AccessType", accessType);
+            builder.UseSetting("OutboxConfiguration:DelayBetweenPollsSeconds", "5");
+
             builder.ConfigureServices(services =>
             {
                 services.RemoveAll<IGithubClient>();
                 services.RemoveAll<IStackOverflowClient>();
                 services.RemoveAll<INotificationStrategy>();
-                services.RemoveAll<NotificationAggregator>();
 
                 services.AddScoped(_ => _githubClient);
                 services.AddScoped(_ => _stackOverflowClient);
 
                 services.AddSingleton(_notificationStrategy);
                 services.AddScoped<INotificationStrategy>(sp => sp.GetRequiredService<InMemoryNotificationStrategy>());
-                services.AddSingleton(sp =>
-                    new NotificationAggregator(NullLogger<NotificationAggregator>.Instance, sp, batchSize: 1));
             });
         });
 
-        _ = testHost.CreateClient();
-        _scope = testHost.Services.CreateAsyncScope();
+        _ = _testHost.CreateClient();
+        _scope = _testHost.Services.CreateAsyncScope();
 
         await ClearDatabaseAsync();
 
@@ -77,6 +80,10 @@ public abstract class BasePipelineIntegrationTests(
     public async Task DisposeAsync()
     {
         await _scope.DisposeAsync();
+        if (_testHost != null)
+        {
+            await _testHost.DisposeAsync();
+        }
     }
 
     [Fact]
@@ -101,13 +108,13 @@ public abstract class BasePipelineIntegrationTests(
 
         await Coordinator.RunIterationAsync(batchSize: 50);
 
-        var message = await WaitForNotificationByUrlAsync(link.Url);
+        var message = await WaitForNotificationByUrlAsync(link.Url, 10 * 1000);
 
         Assert.Equal(link.Url, message.Url);
-        Assert.Contains(chatId, message.UserIdsToNotify);
-        Assert.Contains("Critical bug fixed", message.Message);
-        Assert.Contains("alice", message.Message);
-        Assert.Contains("Issue preview text", message.Message);
+        Assert.Contains(chatId, message.TgChatIds);
+        Assert.Contains("Critical bug fixed", message.Description);
+        Assert.Contains("alice", message.Description);
+        Assert.Contains("Issue preview text", message.Description);
     }
 
     [Fact]
@@ -130,12 +137,12 @@ public abstract class BasePipelineIntegrationTests(
 
         await Coordinator.RunIterationAsync(batchSize: 50);
 
-        var message = await WaitForNotificationByUrlAsync(link.Url, 10_000);
+        var message = await WaitForNotificationByUrlAsync(link.Url, 10 * 1000);
 
         Assert.Equal(link.Url, message.Url);
-        Assert.Contains(chatId, message.UserIdsToNotify);
-        Assert.Contains("Новый ответ от bob", message.Message);
-        Assert.Contains("SO answer preview", message.Message);
+        Assert.Contains(chatId, message.TgChatIds);
+        Assert.Contains("Новый ответ от bob", message.Description);
+        Assert.Contains("SO answer preview", message.Description);
     }
 
     [Fact]
@@ -180,10 +187,10 @@ public abstract class BasePipelineIntegrationTests(
 
         await Coordinator.RunIterationAsync(batchSize: 50);
 
-        var message = await WaitForNotificationByUrlAsync(url: $"https://github.com/{owner}/{repo}");
+        var message = await WaitForNotificationByUrlAsync($"https://github.com/{owner}/{repo}", 10 * 1000);
 
-        Assert.Contains(new string('x', 180), message.Message);
-        Assert.DoesNotContain(new string('x', 230), message.Message);
+        Assert.Contains(new string('x', 180), message.Description);
+        Assert.DoesNotContain(new string('x', 230), message.Description);
     }
 
     [Fact]
@@ -209,13 +216,13 @@ public abstract class BasePipelineIntegrationTests(
 
         await Coordinator.RunIterationAsync(batchSize: 50);
 
-        var notifications = await WaitForNotificationsAsync(1);
+        var notifications = await WaitForNotificationsAsync(1, 10 * 1000);
         var message = Assert.Single(notifications.Where(n => n.Url == successLink.Url));
 
         Assert.Equal(successLink.Url, message.Url);
-        Assert.Contains(chatId2, message.UserIdsToNotify);
+        Assert.Contains(chatId2, message.TgChatIds);
         Assert.NotEqual(failedLink.Url, message.Url);
-        Assert.DoesNotContain(notifications, n => n.Url == failedLink.Url && n.Message.Contains("Новое Issue"));
+        Assert.DoesNotContain(notifications, n => n.Url == failedLink.Url && n.Description.Contains("Новое Issue"));
     }
 
     [Fact]
@@ -328,7 +335,7 @@ public abstract class BasePipelineIntegrationTests(
         await command.ExecuteNonQueryAsync();
     }
 
-    private async Task<IReadOnlyList<NotificationMessage>> WaitForNotificationsAsync(int expectedCount, int timeoutMs = 5000)
+    private async Task<IReadOnlyList<LinkUpdateRequest>> WaitForNotificationsAsync(int expectedCount, int timeoutMs = 5000)
     {
         var startedAt = DateTime.UtcNow;
         while ((DateTime.UtcNow - startedAt).TotalMilliseconds < timeoutMs)
@@ -345,7 +352,7 @@ public abstract class BasePipelineIntegrationTests(
         return _notificationStrategy.Snapshot();
     }
 
-    private async Task<NotificationMessage> WaitForNotificationByUrlAsync(string url, int timeoutMs = 5000)
+    private async Task<LinkUpdateRequest> WaitForNotificationByUrlAsync(string url, int timeoutMs = 5000)
     {
         var startedAt = DateTime.UtcNow;
         while ((DateTime.UtcNow - startedAt).TotalMilliseconds < timeoutMs)
@@ -365,22 +372,24 @@ public abstract class BasePipelineIntegrationTests(
 
     private sealed class InMemoryNotificationStrategy : INotificationStrategy
     {
-        private readonly List<NotificationMessage> _messages = [];
+        private readonly List<LinkUpdateRequest> _messages = [];
         private readonly Lock _lock = new();
 
-        public string TransportName => "test";
-
-        public Task SendAsync(NotificationMessage[] messages, CancellationToken ct)
+        public Task<SendResult> SendAsync(OutboxEvent[] messages, CancellationToken ct)
         {
+            var parsed = messages.Select(e => JsonSerializer.Deserialize<LinkUpdateRequest>(e.Payload))
+                .Where(e => e != null)
+                .ToArray();
+
             lock (_lock)
             {
-                _messages.AddRange(messages);
+                _messages.AddRange(parsed);
             }
 
-            return Task.CompletedTask;
+            return Task.FromResult(new SendResult(messages.Select(e => e.Id).ToList(), Array.Empty<FailedToDeliver>()));
         }
 
-        public IReadOnlyList<NotificationMessage> Snapshot()
+        public IReadOnlyList<LinkUpdateRequest> Snapshot()
         {
             lock (_lock)
             {

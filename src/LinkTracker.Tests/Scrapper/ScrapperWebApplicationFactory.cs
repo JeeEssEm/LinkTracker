@@ -32,6 +32,8 @@ public class ScrapperWebApplicationFactory : WebApplicationFactory<LinkTracker.S
 
         var connectionString = _dbContainer!.GetConnectionString();
         builder.UseSetting("DatabaseOptions:ConnectionString", connectionString);
+        builder.UseSetting("DatabaseOptions:AccessType", "SQL");
+        builder.UseSetting("NotificationStrategyOptions:Strategy", "2");
 
         builder.ConfigureServices(services =>
         {

@@ -44,6 +44,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LinkTracker.Scrapper.Infras
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LinkTracker.Scrapper.Infrastructure.Common", "src\Scrapper\LinkTracker.Scrapper.Infrastructure.Common\LinkTracker.Scrapper.Infrastructure.Common.csproj", "{812F8A42-3FA2-4F1D-987F-FA6CD69A09B7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LinkTracker.Contracts.Broker", "src\Contracts\LinkTracker.Contracts.Broker\LinkTracker.Contracts.Broker.csproj", "{C73C621F-277B-4FB8-ACE6-986EFD14EC36}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -222,6 +224,18 @@ Global
 		{812F8A42-3FA2-4F1D-987F-FA6CD69A09B7}.Release|x64.Build.0 = Release|Any CPU
 		{812F8A42-3FA2-4F1D-987F-FA6CD69A09B7}.Release|x86.ActiveCfg = Release|Any CPU
 		{812F8A42-3FA2-4F1D-987F-FA6CD69A09B7}.Release|x86.Build.0 = Release|Any CPU
+		{C73C621F-277B-4FB8-ACE6-986EFD14EC36}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C73C621F-277B-4FB8-ACE6-986EFD14EC36}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C73C621F-277B-4FB8-ACE6-986EFD14EC36}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{C73C621F-277B-4FB8-ACE6-986EFD14EC36}.Debug|x64.Build.0 = Debug|Any CPU
+		{C73C621F-277B-4FB8-ACE6-986EFD14EC36}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{C73C621F-277B-4FB8-ACE6-986EFD14EC36}.Debug|x86.Build.0 = Debug|Any CPU
+		{C73C621F-277B-4FB8-ACE6-986EFD14EC36}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C73C621F-277B-4FB8-ACE6-986EFD14EC36}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C73C621F-277B-4FB8-ACE6-986EFD14EC36}.Release|x64.ActiveCfg = Release|Any CPU
+		{C73C621F-277B-4FB8-ACE6-986EFD14EC36}.Release|x64.Build.0 = Release|Any CPU
+		{C73C621F-277B-4FB8-ACE6-986EFD14EC36}.Release|x86.ActiveCfg = Release|Any CPU
+		{C73C621F-277B-4FB8-ACE6-986EFD14EC36}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -244,5 +258,6 @@ Global
 		{4CEB3E16-B6F4-4E78-918F-25FF8CF3B0DA} = {0A9B51FA-E6E6-4DAD-AE0A-8336F0057993}
 		{973ABFCC-500A-46B5-8C8C-8D468BCBDD68} = {0A9B51FA-E6E6-4DAD-AE0A-8336F0057993}
 		{812F8A42-3FA2-4F1D-987F-FA6CD69A09B7} = {0A9B51FA-E6E6-4DAD-AE0A-8336F0057993}
+		{C73C621F-277B-4FB8-ACE6-986EFD14EC36} = {00A63723-934A-4C25-A2E2-B43E287A85A4}
 	EndGlobalSection
 EndGlobal

@@ -47,7 +47,7 @@ public class GithubPipeline
         });
 
         var deletedReposActionBlock = new ActionBlock<RepositoryData[]>(
-            async batch => await processDeletedRepositories.ProcessAsync(batch, outputBuffer), dataflowOptions);
+            async batch => await processDeletedRepositories.ProcessAsync(batch), dataflowOptions);
 
         deletedReposBatchBlock.LinkTo(deletedReposActionBlock, new DataflowLinkOptions { PropagateCompletion = true });
 
@@ -60,13 +60,13 @@ public class GithubPipeline
             async batch => await fetchIssues.ProcessAsync(batch, deletedReposBatchBlock), dataflowOptions);
 
         var processIssuesBlock = new ActionBlock<IssueData[]>(
-            async result => await processIssues.ProcessAsync(result, outputBuffer), dataflowOptions);
+            async result => await processIssues.ProcessAsync(result), dataflowOptions);
 
         var fetchPullRequestsBlock = new TransformManyBlock<List<RepositoryData>, PullRequestData[]>(
             async batch => await fetchPullRequests.ProcessAsync(batch, deletedReposBatchBlock), dataflowOptions);
 
         var processPullRequestsBlock = new ActionBlock<PullRequestData[]>(
-            async result => await processPullRequests.ProcessAsync(result, outputBuffer), dataflowOptions);
+            async result => await processPullRequests.ProcessAsync(result), dataflowOptions);
 
         var linkOptions = new DataflowLinkOptions { PropagateCompletion = false };
 

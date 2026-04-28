@@ -1,4 +1,6 @@
 using System.Threading.Tasks.Dataflow;
+using LinkTracker.Scrapper.Application.Abstractions;
+using LinkTracker.Scrapper.Application.Dtos.Outbox;
 using LinkTracker.Scrapper.Application.Repositories;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.Notifications;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Results;
@@ -17,6 +19,8 @@ public class ProcessCommentsStepTests
     {
         var store = Substitute.For<IStackOverflowStore>();
         var subRepo = Substitute.For<ISubscriptionRepository>();
+        var uow = Substitute.For<IUnitOfWork>();
+        var outboxRepo = Substitute.For<IOutboxEventRepository>();
 
         var question = PipelineTestData.Question(questionId: 101, linkId: 6, title: "Q title", isFirstCheck: false, chatIds: [2]);
         var answer = PipelineTestData.Answer(question, answerId: 202);
@@ -30,16 +34,16 @@ public class ProcessCommentsStepTests
         var services = new ServiceCollection();
         services.AddScoped(_ => store);
         services.AddScoped(_ => subRepo);
+        services.AddScoped(_ => uow);
+        services.AddScoped(_ => outboxRepo);
         await using var provider = services.BuildServiceProvider();
 
         var sut = new ProcessCommentsStep(provider, NullLogger<ProcessCommentsStep>.Instance);
-        var output = new BufferBlock<NotificationMessage>();
         var result = new FetchCommentsResult([comment], []);
 
-        await sut.ProcessAsync(result, output);
+        await sut.ProcessAsync(result);
 
-        Assert.True(output.TryReceive(out var message));
-        Assert.Equal(question.Link.Url, message!.Url);
-        Assert.Contains("kate", message.Message);
+        await outboxRepo.Received(1).CreateAsync(
+            Arg.Is<IEnumerable<CreateOutboxEvent>>(e => e.First().Payload.Contains("comment body")));
     }
 }

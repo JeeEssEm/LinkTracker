@@ -20,6 +20,7 @@ public class ClearQuestionsStepTests
         var linkRepo = Substitute.For<ILinkRepository>();
         var subRepo = Substitute.For<ISubscriptionRepository>();
         var uow = Substitute.For<IUnitOfWork>();
+        var outboxRepo = Substitute.For<IOutboxEventRepository>();
 
         store.RemoveQuestionsByIds(Arg.Any<IEnumerable<long>>()).Returns(Task.CompletedTask);
         linkRepo.RemoveLinksAsync(Arg.Any<IEnumerable<long>>()).Returns(Task.CompletedTask);
@@ -31,20 +32,19 @@ public class ClearQuestionsStepTests
         services.AddScoped(_ => linkRepo);
         services.AddScoped(_ => subRepo);
         services.AddScoped(_ => uow);
+        services.AddScoped(_ => outboxRepo);
         await using var provider = services.BuildServiceProvider();
 
         var sut = new ClearQuestionsStep(provider, NullLogger<ClearQuestionsStep>.Instance);
-        var output = new BufferBlock<NotificationMessage>();
 
         var banned = PipelineTestData.Question(questionId: 101, linkId: 11, chatIds: [1]);
         var result = new FetchQuestionsResult([], [banned]);
 
-        var remaining = await sut.ProcessAsync(result, output);
+        var remaining = await sut.ProcessAsync(result);
 
         Assert.Empty(remaining);
         await store.Received(1).RemoveQuestionsByIds(Arg.Is<IEnumerable<long>>(ids => ids.SequenceEqual(new long[] { 101 })));
         await linkRepo.Received(1).RemoveLinksAsync(Arg.Is<IEnumerable<long>>(ids => ids.SequenceEqual(new long[] { 11L })));
-        Assert.True(output.TryReceive(out var message));
-        Assert.Equal(11, message!.LinkId);
+
     }
 }

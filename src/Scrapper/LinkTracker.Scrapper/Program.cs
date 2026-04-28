@@ -1,13 +1,13 @@
 ﻿using System.Text.Json;
+using System.Threading.Channels;
+using Confluent.Kafka;
 using LinkTracker.Bot.Contracts.GrpcErrorProfiles;
 using LinkTracker.Bot.Grpc.Links;
+using LinkTracker.Contracts.Broker;
 using LinkTracker.Contracts.GrpcErrors;
 using LinkTracker.Scrapper;
-using LinkTracker.Scrapper.ApiClients;
-using LinkTracker.Scrapper.ApiClients.BotNotifier;
-using LinkTracker.Scrapper.ApiClients.BotNotifier.Grpc;
-using LinkTracker.Scrapper.ApiClients.BotNotifier.Rest;
 using LinkTracker.Scrapper.Application.Repositories;
+using LinkTracker.Scrapper.Application.Scheduling;
 using LinkTracker.Scrapper.Application.Scraping.ApiClients.Bot;
 using LinkTracker.Scrapper.Application.Scraping.ApiClients.Github;
 using LinkTracker.Scrapper.Application.Scraping.ApiClients.StackOverflow;
@@ -16,7 +16,6 @@ using LinkTracker.Scrapper.Application.Scraping.Pipelines;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.Github;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.Github.Steps;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.Notifications;
-using LinkTracker.Scrapper.Application.Scraping.Pipelines.Notifications.Strategies;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Steps;
 using LinkTracker.Scrapper.Configurations;
@@ -31,10 +30,15 @@ using LinkTracker.Scrapper.Features.Links.RemoveLink;
 using LinkTracker.Scrapper.Infrastructure.Middleware;
 using LinkTracker.Scrapper.Infrastructure.Migrations;
 using LinkTracker.Scrapper.Infrastructure.Orm;
+using LinkTracker.Scrapper.Infrastructure.Pipelines.ExternalApi.BotNotifier.Grpc;
+using LinkTracker.Scrapper.Infrastructure.Pipelines.ExternalApi.BotNotifier.Rest;
 using LinkTracker.Scrapper.Infrastructure.Pipelines.ExternalApi.Github;
 using LinkTracker.Scrapper.Infrastructure.Pipelines.ExternalApi.StackOverflow;
+using LinkTracker.Scrapper.Infrastructure.Pipelines.NotificationStrategies;
+using LinkTracker.Scrapper.Infrastructure.Pipelines.Outbox;
 using LinkTracker.Scrapper.Infrastructure.Sql;
 using LinkTracker.Scrapper.Scheduling;
+using Microsoft.Extensions.Options;
 using Quartz;
 using Refit;
 
@@ -45,6 +49,9 @@ builder.Services.Configure<BotClientOptions>(builder.Configuration.GetSection(Bo
 builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection(DatabaseOptions.Position));
 builder.Services.Configure<StackOverflowPipelineOptions>(builder.Configuration.GetSection(StackOverflowPipelineOptions.Position));
 builder.Services.Configure<GithubPipelineOptions>(builder.Configuration.GetSection(GithubPipelineOptions.Position));
+builder.Services.Configure<NotificationStrategyOptions>(builder.Configuration.GetSection(NotificationStrategyOptions.Position));
+builder.Services.Configure<TopicConfiguration>(builder.Configuration.GetSection(TopicConfiguration.Position));
+builder.Services.Configure<OutboxConfiguration>(builder.Configuration.GetSection(OutboxConfiguration.Position));
 
 builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
@@ -119,6 +126,56 @@ builder.Services.AddScoped<ILinkChecker, GithubRepositoryChecker>();
 builder.Services.AddScoped<ILinkChecker, StackOverflowQuestionChecker>();
 builder.Services.AddScoped<LinkCheckerResolver>();
 
+
+var notificationStrategyOptions = builder.Configuration
+    .GetSection(NotificationStrategyOptions.Position)
+    .Get<NotificationStrategyOptions>();
+if (notificationStrategyOptions == null)
+{
+    throw new ArgumentException("Options for notification strategy are not provided!");
+}
+else
+{
+    switch (notificationStrategyOptions.Strategy)
+    {
+        case NotificationStrategies.Kafka:
+            notificationStrategyOptions.ValidateKafkaStrategy();
+
+            var topicConfig = builder.Configuration
+                .GetSection(TopicConfiguration.Position)
+                .Get<TopicConfiguration>() ?? new TopicConfiguration();
+
+            await KafkaBrokerManager.EnsureTopicExistsAsync(topicConfig, notificationStrategyOptions.Topic!, notificationStrategyOptions.BootstrapServers!);
+
+            builder.Services.AddSingleton<IProducer<Null, string>>(_ =>
+            {
+                var config = new ProducerConfig
+                {
+                    BootstrapServers = notificationStrategyOptions.BootstrapServers,
+                    Acks = Acks.Leader,
+                    BrokerAddressFamily = BrokerAddressFamily.V4
+                };
+                return new ProducerBuilder<Null, string>(config).Build();
+            });
+            builder.Services.AddSingleton<INotificationStrategy, AsyncNotificationStrategy>();
+            break;
+        case NotificationStrategies.Grpc:
+            if (!botClientOptions.UseGrpc)
+            {
+                throw new ArgumentException("Cannot init notifications via gRPC if BotClientOptions.UseGrpc = false");
+            }
+            builder.Services.AddScoped<INotificationStrategy, SyncNotificationStrategy>();
+            break;
+        case NotificationStrategies.Http:
+            if (botClientOptions.UseGrpc)
+            {
+                throw new ArgumentException("Cannot init notifications via HTTP if BotClientOptions.UseGrpc = true");
+            }
+            builder.Services.AddScoped<INotificationStrategy, SyncNotificationStrategy>();
+            break;
+    }
+}
+
 var schedulerOptions = builder.Configuration
     .GetSection(SchedulerOptions.Position)
     .Get<SchedulerOptions>();
@@ -133,7 +190,6 @@ builder.Services.AddSingleton<ProcessCommentsStep>();
 builder.Services.AddSingleton<FetchCommentsStep>();
 builder.Services.AddSingleton<FetchQuestionCommentsStep>();
 builder.Services.AddSingleton<ProcessQuestionCommentsStep>();
-builder.Services.AddSingleton<NotificationAggregator>();
 
 builder.Services.AddSingleton<GithubPipeline>();
 builder.Services.AddSingleton<FetchIssuesStep>();
@@ -141,8 +197,6 @@ builder.Services.AddSingleton<FetchPullRequestsStep>();
 builder.Services.AddSingleton<ProcessDeletedRepositoriesStep>();
 builder.Services.AddSingleton<ProcessIssuesStep>();
 builder.Services.AddSingleton<ProcessPullRequestsStep>();
-
-builder.Services.AddScoped<INotificationStrategy, HttpNotificationStrategy>(); // TODO: добавить gRPC стратегию и env конфиг 
 
 builder.Services.AddSingleton<ScrapingCoordinator>();
 
@@ -158,6 +212,8 @@ builder.Services.AddQuartz(q =>
             .RepeatForever()));
 });
 builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
+
+builder.Services.AddHostedService<OutboxBackgroundService>();
 
 builder.Logging.AddSeq(builder.Configuration.GetSection("Seq"));
 builder.Logging.AddJsonConsole(options =>

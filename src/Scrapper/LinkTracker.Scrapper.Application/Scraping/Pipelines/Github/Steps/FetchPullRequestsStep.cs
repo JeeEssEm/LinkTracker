@@ -25,6 +25,7 @@ public class FetchPullRequestsStep(IServiceProvider serviceProvider, ILogger<Fet
 
         try
         {
+            // TODO:  переделать под семафор/Parallel.ForEachAsync, чтоб не тормозить батч из-за WhenAll
             foreach (var repoChunk in batch.Chunk(_options.ParallelRequestsCount))
             {
                 var tasks = repoChunk.Select(r => client.GetAllPullRequests(r.Owner, r.Repo, _options.PageSize));

@@ -1,4 +1,7 @@
 using System.Threading.Tasks.Dataflow;
+using LinkTracker.Scrapper.Application.Abstractions;
+using LinkTracker.Scrapper.Application.Dtos.Outbox;
+using LinkTracker.Scrapper.Application.Repositories;
 using LinkTracker.Scrapper.Application.Scraping.ApiClients.Github.Models.Statuses;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.Github.Steps;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.Github.Store;
@@ -15,6 +18,8 @@ public class ProcessIssuesStepTests
     public async Task ProcessAsync_NewIssueAndNotFirstCheck_SendsNotification()
     {
         var store = Substitute.For<IGithubStore>();
+        var uow = Substitute.For<IUnitOfWork>();
+        var outboxRepo = Substitute.For<IOutboxEventRepository>();
 
         var repo = PipelineTestData.Repository(owner: "octocat", repo: "hello-world", isFirstCheck: false, chatIds: [7]);
         var issue = PipelineTestData.Issue(
@@ -30,16 +35,15 @@ public class ProcessIssuesStepTests
 
         var services = new ServiceCollection();
         services.AddScoped(_ => store);
+        services.AddScoped(_ => uow);
+        services.AddScoped(_ => outboxRepo);
         await using var provider = services.BuildServiceProvider();
 
         var sut = new ProcessIssuesStep(provider, NullLogger<ProcessIssuesStep>.Instance);
-        var output = new BufferBlock<NotificationMessage>();
 
-        await sut.ProcessAsync([issue], output);
+        await sut.ProcessAsync([issue]);
 
-        Assert.True(output.TryReceive(out var notification));
-        Assert.Contains("New issue", notification!.Message);
-        Assert.Contains("octocat/hello-world", notification.Message);
-        Assert.Equal(repo.Link.Url, notification.Url);
+        await outboxRepo.Received(1).CreateAsync(
+            Arg.Is<IEnumerable<CreateOutboxEvent>>(e => e.First().Payload.Contains("alice")));
     }
 }

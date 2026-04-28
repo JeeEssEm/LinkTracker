@@ -1,6 +1,5 @@
 ﻿using System.Diagnostics;
 using FluentResults;
-using LinkTracker.Scrapper.ApiClients;
 using LinkTracker.Scrapper.Application.Abstractions;
 using LinkTracker.Scrapper.Application.ReadModels;
 using LinkTracker.Scrapper.Application.Repositories;

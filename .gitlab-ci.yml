@@ -8,7 +8,6 @@ stages:
 variables:
   GITLAB_DOCKER_PROXY: gitlab.education.tbank.ru:443/backend-academy-dotnet-2025/lecture-materials/dependency_proxy/containers
 
-
 build:
   stage: build
   script:
@@ -35,12 +34,12 @@ module_test:
       allow_failure: false
     - when: never
   script:
-    - dotnet test --filter "FullyQualifiedName!~LinkTracker.Tests.Scrapper.Repositories&FullyQualifiedName!~LinkTracker.Tests.Scrapper.Api&FullyQualifiedName!~LinkTracker.Tests.Scrapper.Pipelines.Integration"
+    - dotnet test --filter "FullyQualifiedName!~LinkTracker.Tests.Scrapper.Repositories&FullyQualifiedName!~LinkTracker.Tests.Scrapper.Api&FullyQualifiedName!~LinkTracker.Tests.Scrapper.Pipelines.Integration&FullyQualifiedName!~LinkTracker.Tests.Interservice"
 
-integration_test:
+integration_test_api_repo:
   image: mcr.microsoft.com/dotnet/sdk:9.0
   stage: test
-  needs: 
+  needs:
     - job: module_test
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_BRANCH == "master"
@@ -48,11 +47,9 @@ integration_test:
       allow_failure: false
     - when: never
   variables:
-    TESTCONTAINERS_RYUK_DISABLED: true
-    DOCKER_HOST: tcp://docker:2376
-    DOCKER_TLS_CERTDIR: "/certs"
-    DOCKER_TLS_VERIFY: 1
-    DOCKER_CERT_PATH: "$DOCKER_TLS_CERTDIR/client"
+    TESTCONTAINERS_RYUK_DISABLED: "true"
+    DOCKER_HOST: "tcp://docker:2375"
+    DOCKER_TLS_CERTDIR: ""
   tags:
     - dind
   services:
@@ -63,6 +60,30 @@ integration_test:
     - curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-27.3.1.tgz | tar -xz --strip-components=1 -C /usr/local/bin docker/docker
     - echo "$CI_JOB_TOKEN" | docker login gitlab.education.tbank.ru:443 -u gitlab-ci-token --password-stdin
   script:
-    - dotnet test --filter "FullyQualifiedName~LinkTracker.Tests.Scrapper.Repositories|FullyQualifiedName~LinkTracker.Tests.Scrapper.Api|FullyQualifiedName~LinkTracker.Tests.Scrapper.Pipelines.Integration"
+    - dotnet test --filter "FullyQualifiedName~LinkTracker.Tests.Scrapper.Repositories|FullyQualifiedName~LinkTracker.Tests.Scrapper.Api"
 
-  
+integration_test_pipelines_interservice:
+  image: mcr.microsoft.com/dotnet/sdk:9.0
+  stage: test
+  needs:
+    - job: module_test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_BRANCH == "master"
+      when: always
+      allow_failure: false
+    - when: never
+  variables:
+    TESTCONTAINERS_RYUK_DISABLED: "true"
+    DOCKER_HOST: "tcp://docker:2375"
+    DOCKER_TLS_CERTDIR: ""
+  tags:
+    - dind
+  services:
+    - name: docker:29.0.1-dind
+      alias: docker
+      command: ["--tls=false"]
+  before_script:
+    - curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-27.3.1.tgz | tar -xz --strip-components=1 -C /usr/local/bin docker/docker
+    - echo "$CI_JOB_TOKEN" | docker login gitlab.education.tbank.ru:443 -u gitlab-ci-token --password-stdin
+  script:
+    - dotnet test --filter "FullyQualifiedName~LinkTracker.Tests.Scrapper.Pipelines.Integration|FullyQualifiedName~LinkTracker.Tests.Interservice"

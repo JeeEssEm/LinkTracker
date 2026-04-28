@@ -1,6 +1,4 @@
-﻿using System.Threading.Tasks.Dataflow;
-using LinkTracker.Scrapper.Application.Scraping.Pipelines.Notifications;
-using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Data;
+﻿using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Data;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Results;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Store;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,9 +10,7 @@ public class ClearAnswersStep(
     IServiceProvider serviceProvider,
     ILogger<ClearAnswersStep> logger)
 {
-    public async Task<IReadOnlyList<AnswerData>> ProcessAsync(
-        FetchAnswersResult batch,
-        ITargetBlock<NotificationMessage> aggregator)
+    public async Task<IReadOnlyList<AnswerData>> ProcessAsync(FetchAnswersResult batch)
     {
         try
         {

@@ -1,0 +1,19 @@
+﻿using FluentResults;
+using LinkTracker.Bot.Contracts.Rest;
+using LinkTracker.Scrapper.Application.Scraping.ApiClients.Bot;
+
+namespace LinkTracker.Scrapper.Infrastructure.Pipelines.ExternalApi.BotNotifier.Rest;
+
+public class BotRestAdapter(IBotRefitClient botRefitClient) : IBotClient
+{
+    public async Task<Result> SendUpdateAsync(LinkUpdateRequest request)
+    {
+        var response = await botRefitClient.SendUpdateAsync(request);
+        if (response.IsSuccessStatusCode)
+        {
+            return Result.Ok();
+        }
+
+        return Result.Fail(new Error(response.RequestMessage?.ToString()));
+    }
+}

@@ -51,9 +51,10 @@ public class LinkRepository(LinkTrackerContext dbContext, ILogger<LinkRepository
 
     public async Task UpdateCheckDatesAt(long[] linkIds)
     {
+        var now = DateTime.UtcNow;
         await dbContext.Links
             .Where(l => linkIds.Contains(l.Id))
-            .ExecuteUpdateAsync(s => s.SetProperty(l => l.LastCheckAt, DateTime.UtcNow));
+            .ExecuteUpdateAsync(s => s.SetProperty(l => l.LastCheckAt, now));
 
         await dbContext.SaveChangesAsync();
     }

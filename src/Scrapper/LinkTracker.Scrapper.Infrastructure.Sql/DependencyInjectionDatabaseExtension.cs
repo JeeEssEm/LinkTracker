@@ -29,6 +29,7 @@ public static class DependencyInjectionDatabaseExtension
         services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
         services.AddScoped<IStackOverflowStore, SqlStackOverflowStore>();
         services.AddScoped<IGithubStore, SqlGithubStore>();
+        services.AddScoped<IOutboxEventRepository, SqlOutboxRepository>();
 
         return services;
     }
