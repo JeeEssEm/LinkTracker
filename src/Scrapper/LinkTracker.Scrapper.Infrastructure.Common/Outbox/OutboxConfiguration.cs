@@ -1,4 +1,4 @@
-﻿namespace LinkTracker.Scrapper.Infrastructure.Pipelines.Outbox;
+namespace LinkTracker.Scrapper.Infrastructure.Pipelines.Outbox;
 
 public class OutboxConfiguration
 {

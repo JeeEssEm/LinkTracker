@@ -17,23 +17,6 @@ public class AsyncNotificationStrategy(
     ILogger<AsyncNotificationStrategy> logger
     ) : INotificationStrategy
 {
-    // protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    // {
-    // TODO: ensure topic в DI
-    //     await KafkaBrokerManager.EnsureTopicExistsAsync(topicConfig.Value, options.Value.Topic!, options.Value.BootstrapServers!);
-    //     
-    //     using var producer = new ProducerBuilder<Null, string>(config).Build();
-    //     while (!stoppingToken.IsCancellationRequested)
-    //     {
-    //         
-    //         var json = JsonSerializer.Serialize(new LinkUpdateRequest(
-    //             newMessage.LinkId, newMessage.Url,
-    //             newMessage.Message, newMessage.UserIdsToNotify)
-    //         );
-    //         await producer.ProduceAsync(options.Value.Topic, new Message<Null, string> { Value = json }, stoppingToken);
-    //     }
-    // }
-
     public async Task<SendResult> SendAsync(OutboxEvent[] events, CancellationToken ct)
     {
         var tasks = events.ToDictionary(

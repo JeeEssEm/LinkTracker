@@ -1,5 +1,5 @@
 using System.Threading.Tasks.Dataflow;
-using LinkTracker.Scrapper.Application.Abstractions;
+using LinkTracker.Scrapper.Application.Abstractions.UnitOfWork;
 using LinkTracker.Scrapper.Application.Dtos.Outbox;
 using LinkTracker.Scrapper.Application.Repositories;
 using LinkTracker.Scrapper.Application.Scraping.ApiClients.Github.Models.Statuses;
@@ -21,7 +21,7 @@ public class ProcessIssuesStepTests
         var uow = Substitute.For<IUnitOfWork>();
         var outboxRepo = Substitute.For<IOutboxEventRepository>();
 
-        var repo = PipelineTestData.Repository(owner: "octocat", repo: "hello-world", isFirstCheck: false, chatIds: [7]);
+        var repo = PipelineTestData.Repository(Guid.NewGuid(), owner: "octocat", repo: "hello-world", isFirstCheck: false, chatIds: [7]);
         var issue = PipelineTestData.Issue(
             repo,
             number: 1,

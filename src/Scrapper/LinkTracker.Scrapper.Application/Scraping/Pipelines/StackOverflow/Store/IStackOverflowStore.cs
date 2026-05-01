@@ -4,14 +4,11 @@ namespace LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Stor
 
 public interface IStackOverflowStore
 {
-    Task CreateQuestion(long linkId, long questionId);
     Task<AnswerData[]> CreateAndReturnIfNotExist(AnswerData[] answers);
 
     Task<CommentData[]> CreateAndReturnIfNotExist(CommentData[] comments);
 
     Task<QuestionCommentData[]> CreateAndReturnIfNotExist(QuestionCommentData[] comments);
-
-    Task RemoveQuestionsByIds(IEnumerable<long> questionIds);
 
     /// <summary>
     /// Удаляет из БД ответы для указанных вопросов, чьи ID не входят в currentAnswerIds.
@@ -30,5 +27,5 @@ public interface IStackOverflowStore
     Task RemoveStaleQuestionComments(IEnumerable<long> questionIds, IEnumerable<long> currentCommentIds);
     Task RemoveQuestionCommentsByQuestionIds(IEnumerable<long> questionIds);
 
-    Task<Dictionary<long, long>> GetQuestionIdsByLinkIdsAsync(IEnumerable<long> linkIds);
+    Task<Dictionary<Guid, long>> GetQuestionIdsByLinkIdsAsync(IEnumerable<Guid> linkIds);
 }

@@ -1,3 +1,3 @@
 ﻿namespace LinkTracker.Scrapper.Contracts.Dtos.Links;
 
-public record ListLinksResponse(List<LinkResponse> Links, int Size);
+public record ListLinksResponse(IEnumerable<LinkResponse> Links, int Size);

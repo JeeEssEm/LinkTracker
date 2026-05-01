@@ -1,83 +1,42 @@
-﻿using FluentResults;
-using LinkTracker.Scrapper.Application.Repositories;
-using LinkTracker.Scrapper.Application.Scheduling;
-using LinkTracker.Scrapper.Errors.Chats;
-using LinkTracker.Scrapper.Errors.Links;
+using LinkTracker.Scrapper.Domain.Tracking.Entities;
+using LinkTracker.Scrapper.Domain.Tracking.Repositories;
+using LinkTracker.Scrapper.Domain.Tracking.ValueObjects;
 using LinkTracker.Scrapper.Infrastructure.Orm.Context;
-using LinkTracker.Scrapper.Infrastructure.Orm.ModelExtensions;
-using LinkTracker.Scrapper.Infrastructure.Orm.Models;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using Link = LinkTracker.Scrapper.Domain.Links.Entities.Link;
+using Link = LinkTracker.Scrapper.Domain.Tracking.Entities.Link;
 
 namespace LinkTracker.Scrapper.Infrastructure.Orm.Repositories;
 
-public class LinkRepository(LinkTrackerContext dbContext, ILogger<LinkRepository> logger) : ILinkRepository
+public class LinkRepository(LinkTrackerContext dbContext) : ILinkRepository
 {
-    public async Task<Link?> GetLinkAsync(string url)
+    public async Task<Link> GetOrCreateAsync(Uri uri, LinkSourceType sourceType)
     {
-        var linkModel = await dbContext.Links
-            .Where(link => link.Url == url)
-            .FirstOrDefaultAsync();
+        var existedLink = await dbContext.Links.FirstOrDefaultAsync(l => l.Url == uri.AbsoluteUri);
+        if (existedLink == null)
+        {
+            var link = new Models.Link()
+            {
+                Url = uri.AbsoluteUri,
+                SourceType = (short)sourceType
+            };
+            dbContext.Add(link);
+            await dbContext.SaveChangesAsync();
+            return new Link(new LinkId(link.Id), uri, sourceType, null);
+        }
 
-        return linkModel?.ToDomain();
+        return new Link(new LinkId(existedLink.Id), uri, sourceType, existedLink.LastCheckAt);
     }
 
-    public async Task<Link> CreateLink(string url, string checkerKey)
+    public async Task<bool> RemoveLinkAsync(Uri uri)
     {
-        var link = new Models.Link { Url = url, CheckerKey = checkerKey };
-
-        await dbContext.AddAsync(link);
-        await dbContext.SaveChangesAsync();
-
-        return link.ToDomain();
-    }
-
-    public async Task<Link?> RemoveLink(string url)
-    {
-        var link = await dbContext.Links
-            .FirstOrDefaultAsync(link => link.Url == url);
-
+        var link = await dbContext.Links.FirstOrDefaultAsync(l => l.Url == uri.AbsoluteUri);
         if (link == null)
         {
-            return null;
+            return false;
         }
 
         dbContext.Links.Remove(link);
         await dbContext.SaveChangesAsync();
-
-        return link.ToDomain();
-    }
-
-    public async Task UpdateCheckDatesAt(long[] linkIds)
-    {
-        var now = DateTime.UtcNow;
-        await dbContext.Links
-            .Where(l => linkIds.Contains(l.Id))
-            .ExecuteUpdateAsync(s => s.SetProperty(l => l.LastCheckAt, now));
-
-        await dbContext.SaveChangesAsync();
-    }
-
-    public async Task<List<LinkCheckEntry>> GetLinksToCheck(int page, int limit, DateTime currentTime)
-    {
-        var links = await dbContext.Links
-            .Where(lnk => lnk.LastCheckAt < currentTime || lnk.LastCheckAt == null)
-            .OrderBy(lnk => lnk.LastCheckAt)
-            .Skip((page - 1) * limit)
-            .Take(limit)
-            .Select(lnk => new { Link = lnk, SubscriptionChatIds = lnk.Subscriptions.Select(sub => sub.ChatId) })
-            .ToListAsync();
-
-        return links.Select(e => new LinkCheckEntry(
-                e.Link.Id, e.Link.Url, e.Link.CheckerKey, e.Link.LastCheckAt,
-                e.SubscriptionChatIds.ToList()
-            )
-        ).ToList();
-    }
-
-    public async Task RemoveLinksAsync(IEnumerable<long> linkIds)
-    {
-        await dbContext.Links.Where(l => linkIds.Contains(l.Id)).ExecuteDeleteAsync();
+        return true;
     }
 }

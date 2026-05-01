@@ -1,17 +1,15 @@
 ﻿using System.Text.Json;
-using System.Threading.Channels;
 using Confluent.Kafka;
 using LinkTracker.Bot.Contracts.GrpcErrorProfiles;
 using LinkTracker.Bot.Grpc.Links;
 using LinkTracker.Contracts.Broker;
 using LinkTracker.Contracts.GrpcErrors;
-using LinkTracker.Scrapper;
+using LinkTracker.Scrapper.Application.Handlers.Chats;
+using LinkTracker.Scrapper.Application.Handlers.Links;
 using LinkTracker.Scrapper.Application.Repositories;
-using LinkTracker.Scrapper.Application.Scheduling;
 using LinkTracker.Scrapper.Application.Scraping.ApiClients.Bot;
 using LinkTracker.Scrapper.Application.Scraping.ApiClients.Github;
 using LinkTracker.Scrapper.Application.Scraping.ApiClients.StackOverflow;
-using LinkTracker.Scrapper.Application.Scraping.LinkCheckers;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.Github;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.Github.Steps;
@@ -20,16 +18,20 @@ using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Steps;
 using LinkTracker.Scrapper.Configurations;
 using LinkTracker.Scrapper.Contracts.GrpcErrorProfiles;
-using LinkTracker.Scrapper.Features.Chats;
-using LinkTracker.Scrapper.Features.Chats.AddChat;
-using LinkTracker.Scrapper.Features.Chats.RemoveChat;
-using LinkTracker.Scrapper.Features.Links;
-using LinkTracker.Scrapper.Features.Links.AddLink;
-using LinkTracker.Scrapper.Features.Links.GetLinks;
-using LinkTracker.Scrapper.Features.Links.RemoveLink;
+using LinkTracker.Scrapper.Domain.Tracking.Services;
+using LinkTracker.Scrapper.Domain.Tracking.SourceHandlers;
+using LinkTracker.Scrapper.Endpoints.Chats;
+using LinkTracker.Scrapper.Endpoints.Chats.AddChat;
+using LinkTracker.Scrapper.Endpoints.Chats.RemoveChat;
+using LinkTracker.Scrapper.Endpoints.Links;
+using LinkTracker.Scrapper.Endpoints.Links.AddLink;
+using LinkTracker.Scrapper.Endpoints.Links.GetLinks;
+using LinkTracker.Scrapper.Endpoints.Links.RemoveLink;
 using LinkTracker.Scrapper.Infrastructure.Middleware;
-using LinkTracker.Scrapper.Infrastructure.Migrations;
 using LinkTracker.Scrapper.Infrastructure.Orm;
+using LinkTracker.Scrapper.Infrastructure.Orm.Repositories;
+using LinkTracker.Scrapper.Infrastructure.Pipelines.BulkServices;
+using LinkTracker.Scrapper.Infrastructure.Pipelines.Database;
 using LinkTracker.Scrapper.Infrastructure.Pipelines.ExternalApi.BotNotifier.Grpc;
 using LinkTracker.Scrapper.Infrastructure.Pipelines.ExternalApi.BotNotifier.Rest;
 using LinkTracker.Scrapper.Infrastructure.Pipelines.ExternalApi.Github;
@@ -38,7 +40,6 @@ using LinkTracker.Scrapper.Infrastructure.Pipelines.NotificationStrategies;
 using LinkTracker.Scrapper.Infrastructure.Pipelines.Outbox;
 using LinkTracker.Scrapper.Infrastructure.Sql;
 using LinkTracker.Scrapper.Scheduling;
-using Microsoft.Extensions.Options;
 using Quartz;
 using Refit;
 
@@ -56,6 +57,9 @@ builder.Services.Configure<OutboxConfiguration>(builder.Configuration.GetSection
 builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+builder.Services.AddScoped<LinkManager>();
+builder.Services.AddLinkSourceHandlers();
 
 builder.Services.AddScoped<AddChatHandler>();
 builder.Services.AddScoped<RemoveChatHandler>();
@@ -82,14 +86,15 @@ if (databaseOptions == null)
     throw new ArgumentException("Options for database are not provided");
 }
 
+builder.Services.AddCommonDatabaseDependencies(databaseOptions.ConnectionString);
+builder.Services.AddBulkServices();
 if (databaseOptions.AccessType.Equals("ORM", StringComparison.OrdinalIgnoreCase))
 {
-    builder.Services.AddOrmDatabase(databaseOptions.ConnectionString);
+    builder.Services.AddOrmContext();
     builder.Services.AddOrmRepositories();
 }
 else if (databaseOptions.AccessType.Equals("SQL", StringComparison.OrdinalIgnoreCase))
 {
-    builder.Services.AddSqlDatabase(databaseOptions.ConnectionString);
     builder.Services.AddSqlRepositories();
 }
 else
@@ -121,10 +126,6 @@ else
         .ConfigureHttpClient(c => c.BaseAddress = new Uri(botClientOptions.BaseUrl));
     builder.Services.AddScoped<IBotClient, BotRestAdapter>();
 }
-
-builder.Services.AddScoped<ILinkChecker, GithubRepositoryChecker>();
-builder.Services.AddScoped<ILinkChecker, StackOverflowQuestionChecker>();
-builder.Services.AddScoped<LinkCheckerResolver>();
 
 
 var notificationStrategyOptions = builder.Configuration

@@ -24,7 +24,6 @@ public class OrmOutboxRepository(LinkTrackerContext context) : IOutboxEventRepos
             AttemptedAt = DateTimeOffset.UtcNow,
             CreatedAt = DateTimeOffset.UtcNow
         });
-
         await context.OutboxEvents.AddRangeAsync(entities);
         await context.SaveChangesAsync();
     }

@@ -1,7 +1,10 @@
 using System.Text.Json;
+using LinkTracker.Scrapper.Domain.Tracking.Entities;
+using LinkTracker.Scrapper.Domain.Tracking.Repositories;
 using FluentResults;
 using LinkTracker.Bot.Contracts.Rest;
 using LinkTracker.Scrapper.Application.Dtos.Outbox;
+using LinkTracker.Scrapper.Application.QueryServices;
 using LinkTracker.Scrapper.Application.Repositories;
 using LinkTracker.Scrapper.Application.Scheduling;
 using LinkTracker.Scrapper.Application.Scraping.ApiClients.Github;
@@ -9,13 +12,13 @@ using LinkTracker.Scrapper.Application.Scraping.ApiClients.Github.Models;
 using LinkTracker.Scrapper.Application.Scraping.ApiClients.Github.Models.Statuses;
 using LinkTracker.Scrapper.Application.Scraping.ApiClients.StackOverflow;
 using LinkTracker.Scrapper.Application.Scraping.ApiClients.StackOverflow.Models;
-using LinkTracker.Scrapper.Application.Scraping.LinkCheckers;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.Github.Store;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.Notifications;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Store;
-using LinkTracker.Scrapper.Domain.Chats.Entities;
-using LinkTracker.Scrapper.Domain.Links.Entities;
+using LinkTracker.Scrapper.Domain.Tracking.SourceHandlers.Github;
+using LinkTracker.Scrapper.Domain.Tracking.SourceHandlers.StackOverflow;
+using LinkTracker.Scrapper.Domain.Tracking.ValueObjects;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -43,9 +46,13 @@ public abstract class BasePipelineIntegrationTests(
 
     private IChatRepository ChatRepo => _scope.ServiceProvider.GetRequiredService<IChatRepository>();
     private ILinkRepository LinkRepo => _scope.ServiceProvider.GetRequiredService<ILinkRepository>();
+    private ILinkBulkRepository LinkBulkRepo => _scope.ServiceProvider.GetRequiredService<ILinkBulkRepository>();
     private ISubscriptionRepository SubRepo => _scope.ServiceProvider.GetRequiredService<ISubscriptionRepository>();
+    private ISubscriptionQueryService SubQueryRepo => _scope.ServiceProvider.GetRequiredService<ISubscriptionQueryService>();
     private IGithubStore GithubStore => _scope.ServiceProvider.GetRequiredService<IGithubStore>();
+    private IGithubRepository GithubRepo => _scope.ServiceProvider.GetRequiredService<IGithubRepository>();
     private IStackOverflowStore StackOverflowStore => _scope.ServiceProvider.GetRequiredService<IStackOverflowStore>();
+    private IStackOverflowRepository StackOverflowRepo => _scope.ServiceProvider.GetRequiredService<IStackOverflowRepository>();
     private ScrapingCoordinator Coordinator => _scope.ServiceProvider.GetRequiredService<ScrapingCoordinator>();
 
     public async Task InitializeAsync()
@@ -108,9 +115,9 @@ public abstract class BasePipelineIntegrationTests(
 
         await Coordinator.RunIterationAsync(batchSize: 50);
 
-        var message = await WaitForNotificationByUrlAsync(link.Url, 10 * 1000);
+        var message = await WaitForNotificationByUrlAsync(link.LinkUri.ToString(), 10 * 1000);
 
-        Assert.Equal(link.Url, message.Url);
+        Assert.Equal(link.LinkUri.ToString(), message.Url);
         Assert.Contains(chatId, message.TgChatIds);
         Assert.Contains("Critical bug fixed", message.Description);
         Assert.Contains("alice", message.Description);
@@ -137,9 +144,9 @@ public abstract class BasePipelineIntegrationTests(
 
         await Coordinator.RunIterationAsync(batchSize: 50);
 
-        var message = await WaitForNotificationByUrlAsync(link.Url, 10 * 1000);
+        var message = await WaitForNotificationByUrlAsync(link.LinkUri.ToString(), 10 * 1000);
 
-        Assert.Equal(link.Url, message.Url);
+        Assert.Equal(link.LinkUri.ToString(), message.Url);
         Assert.Contains(chatId, message.TgChatIds);
         Assert.Contains("Новый ответ от bob", message.Description);
         Assert.Contains("SO answer preview", message.Description);
@@ -217,12 +224,12 @@ public abstract class BasePipelineIntegrationTests(
         await Coordinator.RunIterationAsync(batchSize: 50);
 
         var notifications = await WaitForNotificationsAsync(1, 10 * 1000);
-        var message = Assert.Single(notifications.Where(n => n.Url == successLink.Url));
+        var message = Assert.Single(notifications.Where(n => n.Url == successLink.LinkUri.AbsoluteUri));
 
-        Assert.Equal(successLink.Url, message.Url);
+        Assert.Equal(successLink.LinkUri.AbsoluteUri, message.Url);
         Assert.Contains(chatId2, message.TgChatIds);
-        Assert.NotEqual(failedLink.Url, message.Url);
-        Assert.DoesNotContain(notifications, n => n.Url == failedLink.Url && n.Description.Contains("Новое Issue"));
+        Assert.NotEqual(failedLink.LinkUri.AbsoluteUri, message.Url);
+        Assert.DoesNotContain(notifications, n => n.Url == failedLink.LinkUri.AbsoluteUri && n.Description.Contains("Новое Issue"));
     }
 
     [Fact]
@@ -237,15 +244,15 @@ public abstract class BasePipelineIntegrationTests(
         var (chatGithub, githubLink) = await CreateTrackedGithubLinkAsync(owner, repo);
         var (chatSo, soLink) = await CreateTrackedStackOverflowLinkAsync(questionId);
 
-        Assert.True(await SubRepo.SubscriptionExistsAsync(chatGithub, githubLink.Id));
-        Assert.True(await SubRepo.SubscriptionExistsAsync(chatSo, soLink.Id));
+        Assert.NotNull(await SubRepo.GetAsync(new ChatId(chatGithub), githubLink.LinkUri.AbsoluteUri));
+        Assert.NotNull(await SubRepo.GetAsync(new ChatId(chatSo), soLink.LinkUri.AbsoluteUri));
 
-        var githubMappings = await GithubStore.GetRepositoriesByLinkIdsAsync([githubLink.Id]);
-        Assert.True(githubMappings.ContainsKey(githubLink.Id));
+        var githubMappings = await GithubStore.GetRepositoriesByLinkIdsAsync([githubLink.Id.Value]);
+        Assert.True(githubMappings.ContainsKey(githubLink.Id.Value));
 
-        var soMappings = await StackOverflowStore.GetQuestionIdsByLinkIdsAsync([soLink.Id]);
-        Assert.True(soMappings.ContainsKey(soLink.Id));
-        Assert.Equal(questionId, soMappings[soLink.Id]);
+        var soMappings = await StackOverflowStore.GetQuestionIdsByLinkIdsAsync([soLink.Id.Value]);
+        Assert.True(soMappings.ContainsKey(soLink.Id.Value));
+        Assert.Equal(questionId, soMappings[soLink.Id.Value]);
     }
 
     private async Task<(long ChatId, Link Link)> CreateTrackedGithubLinkAsync(string owner, string repo)
@@ -253,12 +260,12 @@ public abstract class BasePipelineIntegrationTests(
         var chatId = NextId();
         var url = $"https://github.com/{owner}/{repo}";
 
-        await ChatRepo.AddChatAsync(new Chat(chatId));
-        var link = await LinkRepo.CreateLink(url, GithubRepositoryChecker.ConstKey);
-        await SubRepo.CreateSubscriptionAsync(chatId, link.Id);
+        await ChatRepo.AddChatAsync(new ChatId(chatId));
+        var link = await LinkRepo.GetOrCreateAsync(new Uri(url), LinkSourceType.Github);
+        await SubRepo.CreateAsync(new Subscription(new SubscriptionId(link.Id, new ChatId(chatId)), []));
 
-        await GithubStore.CreateRepository(link.Id, repo, owner);
-        await LinkRepo.UpdateCheckDatesAt([link.Id]);
+        await GithubRepo.CreateAsync(link.Id, repo, owner);
+        await LinkBulkRepo.UpdateCheckDatesAt([link.Id.Value]);
 
         return (chatId, link);
     }
@@ -268,12 +275,12 @@ public abstract class BasePipelineIntegrationTests(
         var chatId = NextId();
         var url = $"https://stackoverflow.com/questions/{questionId}";
 
-        await ChatRepo.AddChatAsync(new Chat(chatId));
-        var link = await LinkRepo.CreateLink(url, StackOverflowQuestionChecker.ConstKey);
-        await SubRepo.CreateSubscriptionAsync(chatId, link.Id);
+        await ChatRepo.AddChatAsync(new ChatId(chatId));
+        var link = await LinkRepo.GetOrCreateAsync(new Uri(url), LinkSourceType.StackOverflow);
+        await SubRepo.CreateAsync(new Subscription(new SubscriptionId(link.Id, new ChatId(chatId)), []));
 
-        await StackOverflowStore.CreateQuestion(link.Id, questionId);
-        await LinkRepo.UpdateCheckDatesAt([link.Id]);
+        await StackOverflowRepo.CreateQuestionAsync(link.Id, questionId);
+        await LinkBulkRepo.UpdateCheckDatesAt([link.Id.Value]);
 
         return (chatId, link);
     }
@@ -316,7 +323,6 @@ public abstract class BasePipelineIntegrationTests(
 
         const string truncateSql = """
             TRUNCATE TABLE
-                link_tags,
                 subscriptions,
                 tags,
                 chats,

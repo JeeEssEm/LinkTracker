@@ -37,11 +37,4 @@
       <ProjectReference Include="..\LinkTracker.Scrapper.Infrastructure.Orm\LinkTracker.Scrapper.Infrastructure.Orm.csproj" />
       <ProjectReference Include="..\LinkTracker.Scrapper.Infrastructure.Sql\LinkTracker.Scrapper.Infrastructure.Sql.csproj" />
     </ItemGroup>
-    
-    <ItemGroup>
-        <EmbeddedResource Include="..\..\..\migrations\001-initial.sql">
-            <Link>Migrations/001-initial.sql</Link>
-        </EmbeddedResource>
-    </ItemGroup>
-
 </Project>

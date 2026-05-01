@@ -1,9 +1,12 @@
-using LinkTracker.Scrapper.Application.Abstractions;
+using LinkTracker.Scrapper.Application.Abstractions.UnitOfWork;
 using LinkTracker.Scrapper.Application.Repositories;
-using LinkTracker.Scrapper.Application.Scraping.LinkCheckers;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.Github.Store;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Store;
-using LinkTracker.Scrapper.Domain.Chats.Entities;
+using LinkTracker.Scrapper.Domain.Tracking.Entities;
+using LinkTracker.Scrapper.Domain.Tracking.Repositories;
+using LinkTracker.Scrapper.Domain.Tracking.SourceHandlers.Github;
+using LinkTracker.Scrapper.Domain.Tracking.SourceHandlers.StackOverflow;
+using LinkTracker.Scrapper.Domain.Tracking.ValueObjects;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -21,13 +24,15 @@ public class OrmAbstractStoresTransactionTests(ScrapperWebApplicationFactory fac
     private IChatRepository ChatRepo => _scope.ServiceProvider.GetRequiredService<IChatRepository>();
     private ILinkRepository LinkRepo => _scope.ServiceProvider.GetRequiredService<ILinkRepository>();
     private IGithubStore GithubStore => _scope.ServiceProvider.GetRequiredService<IGithubStore>();
+    private IGithubRepository GithubRepo => _scope.ServiceProvider.GetRequiredService<IGithubRepository>();
     private IStackOverflowStore StackOverflowStore => _scope.ServiceProvider.GetRequiredService<IStackOverflowStore>();
+    private IStackOverflowRepository StackOverflowRepo => _scope.ServiceProvider.GetRequiredService<IStackOverflowRepository>();
 
     public Task InitializeAsync()
     {
         var testHost = factory.WithWebHostBuilder(builder =>
         {
-            builder.UseSetting("DatabaseOptions:AccessType", "ORM");
+            builder.UseSetting("DatabaseOptions:AccessType", "SQL");
         });
 
         _ = testHost.CreateClient();
@@ -44,71 +49,71 @@ public class OrmAbstractStoresTransactionTests(ScrapperWebApplicationFactory fac
     [Fact]
     public async Task StackOverflowStore_Rollback_DoesNotPersistQuestion()
     {
-        var chatId = NextId();
+        var chatId = new ChatId(NextId());
         var questionId = NextId();
 
-        await ChatRepo.AddChatAsync(new Chat(chatId));
-        var link = await LinkRepo.CreateLink($"https://stackoverflow.com/questions/{questionId}", StackOverflowQuestionChecker.ConstKey);
+        await ChatRepo.AddChatAsync(chatId);
+        var link = await LinkRepo.GetOrCreateAsync(new Uri($"https://stackoverflow.com/questions/{questionId}"), LinkSourceType.StackOverflow);
 
         await Uow.BeginAsync();
-        await StackOverflowStore.CreateQuestion(link.Id, questionId);
+        await StackOverflowRepo.CreateQuestionAsync(link.Id, questionId);
         await Uow.RollbackAsync();
 
-        var mapping = await StackOverflowStore.GetQuestionIdsByLinkIdsAsync([link.Id]);
-        Assert.False(mapping.ContainsKey(link.Id));
+        var mapping = await StackOverflowStore.GetQuestionIdsByLinkIdsAsync([link.Id.Value]);
+        Assert.False(mapping.ContainsKey(link.Id.Value));
     }
 
     [Fact]
     public async Task StackOverflowStore_Commit_PersistsQuestion()
     {
-        var chatId = NextId();
+        var chatId = new ChatId(NextId());
         var questionId = NextId();
 
-        await ChatRepo.AddChatAsync(new Chat(chatId));
-        var link = await LinkRepo.CreateLink($"https://stackoverflow.com/questions/{questionId}", StackOverflowQuestionChecker.ConstKey);
+        await ChatRepo.AddChatAsync(chatId);
+        var link = await LinkRepo.GetOrCreateAsync(new Uri($"https://stackoverflow.com/questions/{questionId}"), LinkSourceType.StackOverflow);
 
         await Uow.BeginAsync();
-        await StackOverflowStore.CreateQuestion(link.Id, questionId);
+        await StackOverflowRepo.CreateQuestionAsync(link.Id, questionId);
         await Uow.CommitAsync();
 
-        var mapping = await StackOverflowStore.GetQuestionIdsByLinkIdsAsync([link.Id]);
-        Assert.True(mapping.ContainsKey(link.Id));
-        Assert.Equal(questionId, mapping[link.Id]);
+        var mapping = await StackOverflowStore.GetQuestionIdsByLinkIdsAsync([link.Id.Value]);
+        Assert.True(mapping.ContainsKey(link.Id.Value));
+        Assert.Equal(questionId, mapping[link.Id.Value]);
     }
 
     [Fact]
     public async Task GithubStore_Rollback_DoesNotPersistRepository()
     {
-        var chatId = NextId();
+        var chatId = new ChatId(NextId());
         var owner = $"owner-{NextId()}";
         var repo = $"repo-{NextId()}";
 
-        await ChatRepo.AddChatAsync(new Chat(chatId));
-        var link = await LinkRepo.CreateLink($"https://github.com/{owner}/{repo}", GithubRepositoryChecker.ConstKey);
+        await ChatRepo.AddChatAsync(chatId);
+        var link = await LinkRepo.GetOrCreateAsync(new Uri($"https://github.com/{owner}/{repo}"), LinkSourceType.Github);
 
         await Uow.BeginAsync();
-        await GithubStore.CreateRepository(link.Id, repo, owner);
+        await GithubRepo.CreateAsync(link.Id, repo, owner);
         await Uow.RollbackAsync();
 
-        var mapping = await GithubStore.GetRepositoriesByLinkIdsAsync([link.Id]);
-        Assert.False(mapping.ContainsKey(link.Id));
+        var mapping = await GithubStore.GetRepositoriesByLinkIdsAsync([link.Id.Value]);
+        Assert.False(mapping.ContainsKey(link.Id.Value));
     }
 
     [Fact]
     public async Task GithubStore_Commit_PersistsRepository()
     {
-        var chatId = NextId();
+        var chatId = new ChatId(NextId());
         var owner = $"owner-{NextId()}";
         var repo = $"repo-{NextId()}";
 
-        await ChatRepo.AddChatAsync(new Chat(chatId));
-        var link = await LinkRepo.CreateLink($"https://github.com/{owner}/{repo}", GithubRepositoryChecker.ConstKey);
+        await ChatRepo.AddChatAsync(chatId);
+        var link = await LinkRepo.GetOrCreateAsync(new Uri($"https://github.com/{owner}/{repo}"), LinkSourceType.Github);
 
         await Uow.BeginAsync();
-        await GithubStore.CreateRepository(link.Id, repo, owner);
+        await GithubRepo.CreateAsync(link.Id, repo, owner);
         await Uow.CommitAsync();
 
-        var mapping = await GithubStore.GetRepositoriesByLinkIdsAsync([link.Id]);
-        Assert.True(mapping.ContainsKey(link.Id));
+        var mapping = await GithubStore.GetRepositoriesByLinkIdsAsync([link.Id.Value]);
+        Assert.True(mapping.ContainsKey(link.Id.Value));
     }
 }

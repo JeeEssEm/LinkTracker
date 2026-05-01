@@ -1,3 +1,3 @@
 ﻿namespace LinkTracker.Scrapper.Contracts.Dtos.Links;
 
-public record LinkResponse(long Id, string Url, IReadOnlyList<string> Tags);
+public record LinkResponse(Guid Id, string Url, IReadOnlyList<string> Tags);

@@ -8,10 +8,12 @@ using LinkTracker.Scrapper.Application.Scraping.ApiClients.Github.Models;
 using LinkTracker.Scrapper.Application.Scraping.ApiClients.Github.Models.Statuses;
 using LinkTracker.Scrapper.Application.Scraping.ApiClients.StackOverflow;
 using LinkTracker.Scrapper.Application.Scraping.ApiClients.StackOverflow.Models;
-using LinkTracker.Scrapper.Application.Scraping.LinkCheckers;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.Github.Store;
-using LinkTracker.Scrapper.Domain.Chats.Entities;
+using LinkTracker.Scrapper.Domain.Tracking.Entities;
+using LinkTracker.Scrapper.Domain.Tracking.Repositories;
+using LinkTracker.Scrapper.Domain.Tracking.Services;
+using LinkTracker.Scrapper.Domain.Tracking.ValueObjects;
 using LinkTracker.Tests.Bot;
 using LinkTracker.Tests.Scrapper;
 using Microsoft.AspNetCore.Hosting;
@@ -141,7 +143,7 @@ public class KafkaMessagingTests : IAsyncLifetime
         var report = await producer.ProduceAsync(_topic, new Message<Null, string>()
         {
             Value = JsonSerializer.Serialize(
-                new LinkUpdateRequest(123, "https://hello.com", "new notification sdnly", chats)
+                new LinkUpdateRequest(Guid.NewGuid(), "https://hello.com", "new notification sdnly", chats)
                 )
         }
         );
@@ -173,18 +175,19 @@ public class KafkaMessagingTests : IAsyncLifetime
 
         await using var scope = _scrapperServices.CreateAsyncScope();
         var chatRepo = scope.ServiceProvider.GetRequiredService<IChatRepository>();
-        var linkRepo = scope.ServiceProvider.GetRequiredService<ILinkRepository>();
+        var linkManager = scope.ServiceProvider.GetRequiredService<LinkManager>();
         var subRepo = scope.ServiceProvider.GetRequiredService<ISubscriptionRepository>();
-        var githubStore = scope.ServiceProvider.GetRequiredService<IGithubStore>();
+        var linkBulkRepo = scope.ServiceProvider.GetRequiredService<ILinkBulkRepository>();
 
-        var chatId = 444L;
+        var chatId = new ChatId(444L);
         var url = $"https://github.com/{owner}/{repo}";
 
-        await chatRepo.AddChatAsync(new Chat(chatId));
-        var link = await linkRepo.CreateLink(url, GithubRepositoryChecker.ConstKey);
-        await subRepo.CreateSubscriptionAsync(chatId, link.Id);
-        await githubStore.CreateRepository(link.Id, repo, owner);
-        await linkRepo.UpdateCheckDatesAt([link.Id]);
+        await chatRepo.AddChatAsync(chatId);
+
+        var link = await linkManager.GetOrCreateAsync(new Uri(url));
+        await subRepo.CreateAsync(new Subscription(new SubscriptionId(link.Value.Id, chatId), []));
+
+        await linkBulkRepo.UpdateCheckDatesAt([link.Value.Id.Value]);
 
         var coordinator = scope.ServiceProvider.GetRequiredService<ScrapingCoordinator>();
         await coordinator.RunIterationAsync(100);
@@ -193,7 +196,7 @@ public class KafkaMessagingTests : IAsyncLifetime
 
         await _botFactory.BotMock.Received(1).SendRequest(
             Arg.Is<SendMessageRequest>(req =>
-                req.ChatId.Identifier == chatId &&
+                req.ChatId.Identifier == chatId.Value &&
                 req.Text != null && req.Text.Contains("New critical issue")),
             Arg.Any<CancellationToken>());
     }

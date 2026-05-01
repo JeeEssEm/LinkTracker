@@ -1,4 +1,4 @@
-﻿using FluentResults;
+using FluentResults;
 using Grpc.Core;
 using LinkTracker.Bot.Contracts.Rest;
 using LinkTracker.Bot.Grpc.Links;
@@ -14,7 +14,7 @@ public class BotGrpcAdapter(BotServiceClient botClient, GrpcErrorMapper errorMap
     {
         try
         {
-            await botClient.UpdateAsync(new LinkUpdatesRequest { ChatIds = { request.TgChatIds }, Id = request.Id, Description = request.Description, Url = request.Url });
+            await botClient.UpdateAsync(new LinkUpdatesRequest { ChatIds = { request.TgChatIds }, Id = request.Id.ToString(), Description = request.Description, Url = request.Url });
             return Result.Ok();
         }
         catch (RpcException exception)

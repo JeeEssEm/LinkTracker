@@ -1,95 +1,56 @@
-﻿using LinkTracker.Scrapper.Application.ReadModels;
-using LinkTracker.Scrapper.Application.Repositories;
+﻿using LinkTracker.Scrapper.Domain.Tracking.Entities;
+using LinkTracker.Scrapper.Domain.Tracking.Repositories;
+using LinkTracker.Scrapper.Domain.Tracking.ValueObjects;
 using LinkTracker.Scrapper.Infrastructure.Orm.Context;
-using LinkTracker.Scrapper.Infrastructure.Orm.Models;
 using Microsoft.EntityFrameworkCore;
+using Subscription = LinkTracker.Scrapper.Domain.Tracking.Entities.Subscription;
 
 namespace LinkTracker.Scrapper.Infrastructure.Orm.Repositories;
 
 public class SubscriptionRepository(LinkTrackerContext dbContext) : ISubscriptionRepository
 {
-    public Task<bool> SubscriptionExistsAsync(long chatId, long linkId)
+    public async Task<bool> CreateAsync(Subscription subscription)
     {
-        return dbContext.Subscriptions.AnyAsync(sub => sub.ChatId == chatId && sub.LinkId == linkId);
-    }
+        if (await dbContext.Subscriptions.CountAsync(
+                s =>
+                s.ChatId == subscription.Id.ChatId.Value &&
+                s.LinkId == subscription.Id.LinkId.Value) != 0)
+        {
+            return false;
+        }
 
-    public Task<bool> SubscriptionExistsAsync(long chatId, string url)
-    {
-        return dbContext.Subscriptions.AnyAsync(sub => sub.ChatId == chatId && sub.Link.Url == url);
-    }
-
-    public async Task CreateSubscriptionAsync(long chatId, long linkId)
-    {
-        var sub = new Subscription { ChatId = chatId, LinkId = linkId };
-
-        await dbContext.AddAsync(sub);
+        var subModel = new Models.Subscription()
+        {
+            ChatId = subscription.Id.ChatId.Value,
+            LinkId = subscription.Id.LinkId.Value,
+            Tags = subscription.Tags.Select(t => new Models.Tag() { Name = t.Name }).ToList()
+        };
+        dbContext.Subscriptions.Add(subModel);
         await dbContext.SaveChangesAsync();
+        return true;
     }
 
-    public async Task RemoveSubscriptionAsync(long chatId, string url)
+    public async Task<Subscription?> GetAsync(ChatId chatId, string url)
     {
-        await dbContext.Subscriptions.Where(sub => sub.ChatId == chatId && sub.Link.Url == url).ExecuteDeleteAsync();
-    }
-
-    public async Task<SubscribedLink?> GetSubscriptionAsync(long chatId, long linkId)
-    {
-        var link = await dbContext.Links
-            .Where(link => link.Id == linkId && link.Subscriptions.Any(sub => sub.ChatId == chatId))
-            .Include(link => link.LinkTags
-                .Where(lt => lt.Tag.ChatId == chatId)
-            )
-            .ThenInclude(linkTag => linkTag.Tag)
-            .FirstOrDefaultAsync();
-        if (link == null)
+        var sub = await dbContext.Subscriptions
+            .Include(s => s.Tags)
+            .FirstOrDefaultAsync(s => s.ChatId == chatId.Value && s.Link.Url == url);
+        if (sub == null)
         {
             return null;
         }
 
-        return new SubscribedLink(linkId, link.Url, link.LinkTags.Select(lt => lt.Tag.Name).ToList());
+        return new Subscription(
+            new SubscriptionId(new LinkId(sub.LinkId), new ChatId(sub.ChatId)),
+            sub.Tags.Select(t => new Tag(t.Name))
+            );
     }
 
-    public async Task<SubscribedLink?> GetSubscriptionAsync(long chatId, string url)
+    public async Task RemoveAsync(Subscription subscription)
     {
-        var link = await dbContext.Links
-            .Where(link => link.Url == url && link.Subscriptions.Any(sub => sub.ChatId == chatId))
-            .Include(link => link.LinkTags
-                .Where(lt => lt.Tag.ChatId == chatId)
-            )
-            .ThenInclude(linkTag => linkTag.Tag)
-            .FirstOrDefaultAsync();
-
-        if (link == null)
-        {
-            return null;
-        }
-
-        return new SubscribedLink(link.Id, link.Url, link.LinkTags.Select(lt => lt.Tag.Name).ToList());
-    }
-
-    public async Task<List<SubscribedLink>> GetSubscriptionsByChatAsync(long chatId)
-    {
-        var links = await dbContext.Links
-            .Where(link => link.Subscriptions.Any(sub => sub.ChatId == chatId))
-            .Include(link => link.LinkTags
-                .Where(lt => lt.Tag.ChatId == chatId)
-            )
-            .ThenInclude(linkTag => linkTag.Tag)
-            .ToListAsync();
-
-        return links
-            .Select(lnk => new SubscribedLink(
-                lnk.Id, lnk.Url,
-                lnk.LinkTags.Select(lt => lt.Tag.Name).ToList())
-        ).ToList();
-    }
-
-    public async Task<List<long>> GetChatIdsByLinkId(long linkId, int limit, long previousChatId)
-    {
-        return await dbContext.Subscriptions
-            .Where(s => s.LinkId == linkId && s.ChatId > previousChatId)
-            .Select(s => s.ChatId)
-            .OrderBy(id => id)
-            .Take(limit)
-            .ToListAsync();
+        await dbContext.Subscriptions.Where(sub =>
+            sub.ChatId == subscription.Id.ChatId.Value &&
+            sub.LinkId == subscription.Id.LinkId.Value
+        ).ExecuteDeleteAsync();
     }
 }

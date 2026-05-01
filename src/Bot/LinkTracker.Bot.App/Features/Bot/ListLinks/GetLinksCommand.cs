@@ -40,7 +40,7 @@ public class GetLinksCommand(ITelegramBotClient botClient, IScrapperClient scrap
             return;
         }
 
-        await botClient.SendMessage(msg.Chat.Id, BuildMessage(result.Value?.Links ?? [], filter.Value), cancellationToken: ct);
+        await botClient.SendMessage(msg.Chat.Id, BuildMessage(result.Value?.Links.ToList() ?? [], filter.Value), cancellationToken: ct);
     }
 
     private string BuildMessage(List<LinkResponse> links, string? tagFilter)

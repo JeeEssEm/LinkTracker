@@ -6,7 +6,7 @@ namespace LinkTracker.Bot.App.Features.Api.Updates;
 public static class UpdatesMapper
 {
     public static LinkUpdateRequest ToRequest(this GrpcNamespace.LinkUpdatesRequest request) => new(
-        request.Id,
+        Guid.Parse(request.Id),
         request.Url,
         request.Description,
         request.ChatIds

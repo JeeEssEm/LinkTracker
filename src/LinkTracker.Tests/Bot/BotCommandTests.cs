@@ -134,7 +134,7 @@ public class BotCommandTests
         var chatId = 6;
         var links = new List<LinkResponse>
         {
-            new(1, "https://github.com/test/repo", new List<string> { "work" })
+            new(Guid.NewGuid(), "https://github.com/test/repo", new List<string> { "work" })
         };
         _scrapperClient.ListLinksAsync(chatId)
             .Returns(Task.FromResult(Result.Ok(new ListLinksResponse(links, links.Count))));
@@ -155,8 +155,8 @@ public class BotCommandTests
         var chatId = 7;
         var links = new List<LinkResponse>
         {
-            new (1, "https://github.com/a/b", new List<string> { "work" }),
-            new (2, "https://github.com/c/d", new List<string> { "hobby" })
+            new (Guid.NewGuid(), "https://github.com/a/b", new List<string> { "work" }),
+            new (Guid.NewGuid(), "https://github.com/c/d", new List<string> { "hobby" })
         };
         _scrapperClient.ListLinksAsync(chatId)
             .Returns(Result.Ok(new ListLinksResponse(links, links.Count)));

@@ -1,8 +1,6 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
 using LinkTracker.Scrapper.Contracts.Dtos.Links;
-using LinkTracker.Scrapper.Features.Links.AddLink;
-using LinkTracker.Scrapper.Features.Links.RemoveLink;
 using ListLinksResponse = LinkTracker.Scrapper.Contracts.Dtos.Links.ListLinksResponse;
 
 namespace LinkTracker.Tests.Scrapper.Api;
@@ -28,7 +26,7 @@ public abstract class BaseScrapperApiTests(ScrapperWebApplicationFactory factory
         Assert.True(body.Size == 1);
         Assert.Contains(body.Links, l => l.Url == "https://github.com/dotnet/runtime");
 
-        var createdLink = body.Links[0];
+        var createdLink = body.Links.First();
         Assert.Equal(2, createdLink.Tags.Count);
         Assert.Contains("dotnet", createdLink.Tags);
         Assert.Contains("C#", createdLink.Tags);
@@ -118,8 +116,9 @@ public abstract class BaseScrapperApiTests(ScrapperWebApplicationFactory factory
         Assert.Equal(1, links528.Size);
         Assert.Equal(0, links488.Size);
 
-        Assert.Contains("java", links528.Links[0].Tags);
-        Assert.Contains("web", links528.Links[0].Tags);
+        var first = links528.Links.First();
+        Assert.Contains("java", first.Tags);
+        Assert.Contains("web", first.Tags);
     }
 
     private async Task<HttpResponseMessage> PostLink(long chatId, string url, List<string> tags)

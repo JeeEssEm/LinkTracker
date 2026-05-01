@@ -2,9 +2,8 @@
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Results;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Store;
 using LinkTracker.Bot.Contracts.Rest;
-using LinkTracker.Scrapper.Application.Abstractions;
+using LinkTracker.Scrapper.Application.Abstractions.UnitOfWork;
 using LinkTracker.Scrapper.Application.Dtos.Outbox;
-using LinkTracker.Scrapper.Application.Scraping.Pipelines.Shared;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 

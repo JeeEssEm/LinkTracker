@@ -1,7 +1,6 @@
 ﻿using System.Threading.Tasks.Dataflow;
 using LinkTracker.Scrapper.Application.Repositories;
 using LinkTracker.Scrapper.Application.Scheduling;
-using LinkTracker.Scrapper.Application.Scraping.LinkCheckers;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.Github;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.Github.Data;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.Github.Store;
@@ -11,6 +10,7 @@ using LinkTracker.Scrapper.Application.Scraping.Pipelines.Shared.Data;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Data;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Store;
+using LinkTracker.Scrapper.Domain.Tracking.ValueObjects;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LinkTracker.Scrapper.Application.Scraping.Pipelines;
@@ -37,7 +37,7 @@ public class ScrapingCoordinator
         var now = DateTime.UtcNow;
 
         await using var scope = _serviceProvider.CreateAsyncScope();
-        var linkRepo = scope.ServiceProvider.GetRequiredService<ILinkRepository>();
+        var linkRepo = scope.ServiceProvider.GetRequiredService<ILinkBulkRepository>();
         var soStore = scope.ServiceProvider.GetRequiredService<IStackOverflowStore>();
         var githubStore = scope.ServiceProvider.GetRequiredService<IGithubStore>();
 
@@ -46,9 +46,9 @@ public class ScrapingCoordinator
         {
             var links = await linkRepo.GetLinksToCheck(page, batchSize, now);
 
-            // TODO: сделать enum вместо строковых ключей + использовать стратегию
-            var soLinks = links.Where(l => l.CheckerKey == StackOverflowQuestionChecker.ConstKey).ToList();
-            var githubLinks = links.Where(l => l.CheckerKey == GithubRepositoryChecker.ConstKey).ToList();
+            // TODO: использовать стратегию
+            var soLinks = links.Where(l => l.SourceType == LinkSourceType.StackOverflow).ToList();
+            var githubLinks = links.Where(l => l.SourceType == LinkSourceType.Github).ToList();
             if (soLinks.Count == 0 && githubLinks.Count == 0)
             {
                 return;
@@ -65,7 +65,7 @@ public class ScrapingCoordinator
         }
     }
 
-    private async Task PushLinksToPipelines(List<LinkCheckEntry> soLinks, Dictionary<long, long> soMappings, List<LinkCheckEntry> githubLinks, Dictionary<long, RepositoryModel> githubMappings)
+    private async Task PushLinksToPipelines(List<LinkCheckEntry> soLinks, Dictionary<Guid, long> soMappings, List<LinkCheckEntry> githubLinks, Dictionary<Guid, RepositoryModel> githubMappings)
     {
         var questionsBatch = new List<QuestionData>();
         var reposBatch = new List<RepositoryData>();

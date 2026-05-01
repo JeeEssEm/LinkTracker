@@ -1,11 +1,9 @@
-﻿using System.Runtime.CompilerServices;
-using LinkTracker.Bot.Contracts.Rest;
-using LinkTracker.Scrapper.Application.Abstractions;
+﻿using LinkTracker.Bot.Contracts.Rest;
+using LinkTracker.Scrapper.Application.Abstractions.UnitOfWork;
 using LinkTracker.Scrapper.Application.Dtos.Outbox;
 using LinkTracker.Scrapper.Application.Repositories;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Data;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Results;
-using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Store;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -27,14 +25,12 @@ public class ClearQuestionsStep(
         {
             // TODO: сделать сами шаги scoped, чтоб не париться с зависимостями
             await using var scope = serviceProvider.CreateAsyncScope();
-            var store = scope.ServiceProvider.GetRequiredService<IStackOverflowStore>();
-            var linkRepo = scope.ServiceProvider.GetRequiredService<ILinkRepository>();
+            var linkRepo = scope.ServiceProvider.GetRequiredService<ILinkBulkRepository>();
             var outboxRepo = scope.ServiceProvider.GetRequiredService<IOutboxEventRepository>();
             var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
             await uow.BeginAsync();
 
-            await store.RemoveQuestionsByIds(result.BannedQuestions.Select(q => q.Id));
             await linkRepo.RemoveLinksAsync(result.BannedQuestions.Select(q => q.Link.Id));
 
             await NotifyBannedAsync(result.BannedQuestions, outboxRepo);

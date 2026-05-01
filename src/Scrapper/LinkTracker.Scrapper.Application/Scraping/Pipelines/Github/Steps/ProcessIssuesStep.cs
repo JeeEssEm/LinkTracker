@@ -1,5 +1,5 @@
 ﻿using LinkTracker.Bot.Contracts.Rest;
-using LinkTracker.Scrapper.Application.Abstractions;
+using LinkTracker.Scrapper.Application.Abstractions.UnitOfWork;
 using LinkTracker.Scrapper.Application.Dtos.Outbox;
 using LinkTracker.Scrapper.Application.Repositories;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.Github.Data;

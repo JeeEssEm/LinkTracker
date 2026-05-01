@@ -1,7 +1,8 @@
 ﻿using System.Data.Common;
 using FluentResults;
 using LinkTracker.Scrapper.Application.Repositories;
-using LinkTracker.Scrapper.Domain.Chats.Entities;
+using LinkTracker.Scrapper.Domain.Tracking.Entities;
+using LinkTracker.Scrapper.Domain.Tracking.Repositories;
 using LinkTracker.Scrapper.Errors.Chats;
 using LinkTracker.Scrapper.Infrastructure.Orm.Context;
 using Microsoft.EntityFrameworkCore;
@@ -11,38 +12,42 @@ namespace LinkTracker.Scrapper.Infrastructure.Orm.Repositories;
 
 public class ChatRepository(LinkTrackerContext dbContext, ILogger<ChatRepository> logger) : IChatRepository
 {
-    public async Task<bool> AddChatAsync(Chat chat)
+    public async Task<bool> AddChatAsync(ChatId telegramId)
     {
-        var chatModel = new Models.Chat() { Id = chat.Id };
-
-        try
+        if (await dbContext.Chats.CountAsync(c => c.Id == telegramId.Value) != 0)
         {
-            await dbContext.AddAsync(chatModel);
-            await dbContext.SaveChangesAsync();
-
-            return true;
-        }
-        catch (DbException e)
-        {
-            logger.LogError(e, "Failed to add chat");
             return false;
         }
+        var chatModel = new Models.Chat { Id = telegramId.Value };
+
+        await dbContext.AddAsync(chatModel);
+        await dbContext.SaveChangesAsync();
+
+        return true;
     }
 
-    public async Task<Chat?> GetChatAsync(long id)
+    public async Task<Chat?> GetChatAsync(ChatId id)
     {
-        var existingChat = await dbContext.Chats.FindAsync(id);
-        return existingChat == null ? null : new Chat(existingChat.Id);
+        var existingChat = await dbContext.Chats.FindAsync(id.Value);
+        return existingChat == null ? null : new Chat(id);
     }
 
-    public async Task RemoveChatAsync(long id)
+    public async Task<bool> RemoveChatAsync(ChatId id)
     {
-        var chat = await dbContext.Chats.FindAsync(id);
+        var chat = await dbContext.Chats.FindAsync(id.Value);
 
         if (chat != null)
         {
             dbContext.Chats.Remove(chat);
             await dbContext.SaveChangesAsync();
+            return true;
         }
+
+        return false;
+    }
+
+    public async Task<bool> ExistsAsync(ChatId id)
+    {
+        return await dbContext.Chats.CountAsync(c => c.Id == id.Value) != 0;
     }
 }

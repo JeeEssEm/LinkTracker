@@ -1,5 +1,6 @@
 using System.Threading.Tasks.Dataflow;
-using LinkTracker.Scrapper.Application.Abstractions;
+using LinkTracker.Scrapper.Application.Abstractions.UnitOfWork;
+using LinkTracker.Scrapper.Domain.Tracking.Repositories;
 using LinkTracker.Scrapper.Application.Dtos.Outbox;
 using LinkTracker.Scrapper.Application.Repositories;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.Notifications;
@@ -22,7 +23,7 @@ public class ProcessQuestionCommentsStepTests
         var uow = Substitute.For<IUnitOfWork>();
         var outboxRepo = Substitute.For<IOutboxEventRepository>();
 
-        var question = PipelineTestData.Question(questionId: 101, linkId: 15, title: "Question", isFirstCheck: false, chatIds: [3]);
+        var question = PipelineTestData.Question(questionId: 101, linkId: Guid.NewGuid(), title: "Question", isFirstCheck: false, chatIds: [3]);
         var comment = PipelineTestData.QuestionComment(question, commentId: 707, body: "question comment", owner: "oliver");
 
         store.RemoveStaleQuestionComments(Arg.Any<IEnumerable<long>>(), Arg.Any<IEnumerable<long>>()).Returns(Task.CompletedTask);
