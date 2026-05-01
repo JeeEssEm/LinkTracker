@@ -1,9 +1,8 @@
-﻿using System.Text;
+using System.Text;
 using System.Text.Json;
 using Confluent.Kafka;
 using LinkTracker.Bot.Contracts.Rest;
 using LinkTracker.Contracts.Broker;
-using LinkTracker.Scrapper.Application.Abstractions;
 using LinkTracker.Scrapper.Application.Dtos.Outbox;
 using LinkTracker.Scrapper.Application.Repositories;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.Notifications;

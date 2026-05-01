@@ -1,9 +1,9 @@
 CREATE TABLE stackoverflow_questions (
     id bigint NOT NULL,
-    link_id bigint NOT NULL,
+    link_id uuid NOT NULL,
     created_at timestamp with time zone DEFAULT (now() AT TIME ZONE 'utc'),
     CONSTRAINT pk_stackoverflow_questions PRIMARY KEY (id),
-    CONSTRAINT fk_stackoverflow_questions_links_link_id FOREIGN KEY (link_id) REFERENCES links (id) ON DELETE CASCADE
+    CONSTRAINT fk_stackoverflow_questions_links_link_id FOREIGN KEY (link_id) REFERENCES links(id) ON DELETE CASCADE
 );
 
 CREATE TABLE stackoverflow_answers (

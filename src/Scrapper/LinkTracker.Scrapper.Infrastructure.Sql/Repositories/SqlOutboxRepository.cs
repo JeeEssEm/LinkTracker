@@ -1,7 +1,8 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Dapper;
 using LinkTracker.Scrapper.Application.Dtos.Outbox;
 using LinkTracker.Scrapper.Application.Repositories;
+using LinkTracker.Scrapper.Infrastructure.Pipelines.Database;
 
 namespace LinkTracker.Scrapper.Infrastructure.Sql.Repositories;
 
@@ -9,7 +10,7 @@ public class SqlOutboxRepository(DatabaseSession session) : IOutboxEventReposito
 {
     public async Task CreateAsync(IEnumerable<CreateOutboxEvent> outboxEvents)
     {
-        var dbConnection = await session.GetConnectionAsync();
+        var dbConnection = await session.OpenConnectionAsync();
         var query =
             """
             INSERT INTO outbox_events(headers, payload, retry_count, error_messages, event_id, status, attempted_at, created_at) 
@@ -37,7 +38,7 @@ public class SqlOutboxRepository(DatabaseSession session) : IOutboxEventReposito
 
     public async Task SetSent(IEnumerable<long> ids)
     {
-        var dbConnection = await session.GetConnectionAsync();
+        var dbConnection = await session.OpenConnectionAsync();
         var query =
             """
             UPDATE outbox_events
@@ -50,7 +51,7 @@ public class SqlOutboxRepository(DatabaseSession session) : IOutboxEventReposito
 
     public async Task SetFailed(IEnumerable<(long eventId, string error)> events)
     {
-        var dbConnection = await session.GetConnectionAsync();
+        var dbConnection = await session.OpenConnectionAsync();
         var query =
             """
             UPDATE outbox_events AS events
@@ -76,7 +77,7 @@ public class SqlOutboxRepository(DatabaseSession session) : IOutboxEventReposito
             retryDelaySec = (int)retryDelay.Value.TotalSeconds;
         }
 
-        var dbConnection = await session.GetConnectionAsync();
+        var dbConnection = await session.OpenConnectionAsync();
         var query =
             """
             UPDATE outbox_events

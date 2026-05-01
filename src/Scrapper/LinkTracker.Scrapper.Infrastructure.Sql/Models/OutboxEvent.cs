@@ -1,4 +1,4 @@
-﻿using LinkTracker.Scrapper.Application.Dtos.Outbox;
+using LinkTracker.Scrapper.Application.Dtos.Outbox;
 
 namespace LinkTracker.Scrapper.Infrastructure.Sql.Models;
 

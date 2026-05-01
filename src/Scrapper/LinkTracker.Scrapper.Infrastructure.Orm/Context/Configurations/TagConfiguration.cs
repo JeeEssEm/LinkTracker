@@ -8,22 +8,18 @@ public class TagConfiguration : IEntityTypeConfiguration<Tag>
 {
     public void Configure(EntityTypeBuilder<Tag> builder)
     {
-        builder.HasKey(t => t.Id);
+        builder.HasKey(e => e.Id);
+        builder.Property(e => e.Id).UseIdentityColumn();
+        builder.Property(e => e.Name).HasMaxLength(64).IsRequired();
 
-        builder.Property(t => t.Name)
-            .IsRequired()
-            .HasMaxLength(64);
+        builder.HasOne(e => e.Subscription)
+            .WithMany(s => s.Tags)
+            .HasForeignKey(e => new { e.ChatId, e.LinkId })
+            .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasIndex(t => new { t.Name, t.ChatId })
-            .IsUnique();
-
-        builder.HasOne(t => t.Chat)
-            .WithMany(c => c.Tags)
-            .HasForeignKey(t => t.ChatId);
-
-        builder.HasMany(t => t.LinkTags)
-            .WithOne(lt => lt.Tag)
-            .HasForeignKey(lt => lt.TagId)
+        builder.HasOne(e => e.Link)
+            .WithMany(l => l.Tags)
+            .HasForeignKey(e => e.LinkId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

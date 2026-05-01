@@ -28,7 +28,7 @@ public class FetchCommentsStepTests
         var options = Options.Create(new StackOverflowPipelineOptions());
         var sut = new FetchCommentsStep(provider, NullLogger<FetchCommentsStep>.Instance, options);
 
-        var question = PipelineTestData.Question(questionId: 101, linkId: 2);
+        var question = PipelineTestData.Question(questionId: 101, linkId: Guid.NewGuid());
         var answer = PipelineTestData.Answer(question, answerId: 201);
 
         var result = await sut.ProcessAsync([answer]);

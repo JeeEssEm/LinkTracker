@@ -5,7 +5,7 @@ import "google/protobuf/empty.proto";
 option csharp_namespace = "LinkTracker.Bot.Grpc.Links";
 
 message LinkUpdatesRequest {
-  int64 id = 1;
+  string id = 1;
   string url = 2;
   string description = 3;
   repeated int64 chat_ids = 4;

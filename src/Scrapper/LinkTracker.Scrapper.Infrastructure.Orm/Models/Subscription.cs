@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 
 namespace LinkTracker.Scrapper.Infrastructure.Orm.Models;
@@ -6,8 +6,9 @@ namespace LinkTracker.Scrapper.Infrastructure.Orm.Models;
 public class Subscription
 {
     public long ChatId { get; set; }
-    public long LinkId { get; set; }
+    public Guid LinkId { get; set; }
 
-    public Link Link { get; set; } = null!;
     public Chat Chat { get; set; } = null!;
+    public Link Link { get; set; } = null!;
+    public ICollection<Tag> Tags { get; set; } = new List<Tag>();
 }

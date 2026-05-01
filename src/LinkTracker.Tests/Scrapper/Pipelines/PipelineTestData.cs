@@ -8,19 +8,20 @@ namespace LinkTracker.Tests.Scrapper.Pipelines;
 internal static class PipelineTestData
 {
     public static LinkMetadata Link(
-        long id = 1,
+        Guid id,
         string? url = null,
         IReadOnlyList<long>? chatIds = null,
         bool isFirstCheck = false)
         => new(id, url ?? $"https://example.com/{id}", chatIds ?? Array.Empty<long>(), isFirstCheck);
 
     public static RepositoryData Repository(
+        Guid linkId,
         int id = 1,
         string owner = "octocat",
         string repo = "hello-world",
         bool isFirstCheck = false,
         IReadOnlyList<long>? chatIds = null)
-        => new(id, Link(id, $"https://github.com/{owner}/{repo}", chatIds, isFirstCheck), owner, repo);
+        => new(id, Link(linkId, $"https://github.com/{owner}/{repo}", chatIds, isFirstCheck), owner, repo);
 
     public static IssueData Issue(
         RepositoryData repo,
@@ -42,8 +43,8 @@ internal static class PipelineTestData
         => new(repo, number, title, username, DateTime.UtcNow, description, status, isFirstCheck);
 
     public static QuestionData Question(
+        Guid linkId,
         long questionId = 101,
-        long linkId = 1,
         string title = "Question title",
         bool isFirstCheck = false,
         IReadOnlyList<long>? chatIds = null)

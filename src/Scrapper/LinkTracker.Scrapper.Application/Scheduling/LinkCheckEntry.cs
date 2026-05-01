@@ -1,3 +1,5 @@
-﻿namespace LinkTracker.Scrapper.Application.Scheduling;
+﻿using LinkTracker.Scrapper.Domain.Tracking.ValueObjects;
 
-public record LinkCheckEntry(long Id, string Url, string CheckerKey, DateTime? LastCheckAt, IReadOnlyList<long> ChatIdsToNotify);
+namespace LinkTracker.Scrapper.Application.Scheduling;
+
+public record LinkCheckEntry(Guid Id, string Url, LinkSourceType SourceType, DateTimeOffset? LastCheckAt, IReadOnlyList<long> ChatIdsToNotify);

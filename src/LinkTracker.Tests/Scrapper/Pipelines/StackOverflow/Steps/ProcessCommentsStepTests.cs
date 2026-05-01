@@ -1,5 +1,6 @@
 using System.Threading.Tasks.Dataflow;
-using LinkTracker.Scrapper.Application.Abstractions;
+using LinkTracker.Scrapper.Application.Abstractions.UnitOfWork;
+using LinkTracker.Scrapper.Domain.Tracking.Repositories;
 using LinkTracker.Scrapper.Application.Dtos.Outbox;
 using LinkTracker.Scrapper.Application.Repositories;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.Notifications;
@@ -22,7 +23,7 @@ public class ProcessCommentsStepTests
         var uow = Substitute.For<IUnitOfWork>();
         var outboxRepo = Substitute.For<IOutboxEventRepository>();
 
-        var question = PipelineTestData.Question(questionId: 101, linkId: 6, title: "Q title", isFirstCheck: false, chatIds: [2]);
+        var question = PipelineTestData.Question(questionId: 101, linkId: Guid.NewGuid(), title: "Q title", isFirstCheck: false, chatIds: [2]);
         var answer = PipelineTestData.Answer(question, answerId: 202);
         var comment = PipelineTestData.Comment(answer, commentId: 303, body: "comment body", owner: "kate");
 

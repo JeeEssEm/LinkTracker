@@ -37,7 +37,7 @@ public class FetchPullRequestsStepTests
 
         var sut = new FetchPullRequestsStep(provider, NullLogger<FetchPullRequestsStep>.Instance, options);
         var deletedRepos = new BufferBlock<RepositoryData>();
-        var repo = PipelineTestData.Repository(owner: "octocat", repo: "hello-world", chatIds: [1]);
+        var repo = PipelineTestData.Repository(Guid.NewGuid(), owner: "octocat", repo: "hello-world", chatIds: [1]);
 
         var result = (await sut.ProcessAsync([repo], deletedRepos)).ToList();
 

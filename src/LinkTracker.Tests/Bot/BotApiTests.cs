@@ -17,7 +17,7 @@ public class BotApiTests : IClassFixture<BotWebApplicationFactory>
     public async Task UpdatesOk()
     {
         var resp = await _client.PostAsync(
-            "/updates", JsonContent.Create(new LinkUpdateRequest(123, "www.example.com", "hi", [869822696])));
+            "/updates", JsonContent.Create(new LinkUpdateRequest(Guid.NewGuid(), "www.example.com", "hi", [869822696])));
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
     }
 

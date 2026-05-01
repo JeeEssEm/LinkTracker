@@ -1,4 +1,4 @@
-﻿namespace LinkTracker.Scrapper.Infrastructure.Pipelines.NotificationStrategies;
+namespace LinkTracker.Scrapper.Infrastructure.Pipelines.NotificationStrategies;
 
 public enum NotificationStrategies
 {

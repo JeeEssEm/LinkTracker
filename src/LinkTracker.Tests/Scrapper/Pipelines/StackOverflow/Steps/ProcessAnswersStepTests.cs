@@ -1,5 +1,6 @@
 using System.Threading.Tasks.Dataflow;
-using LinkTracker.Scrapper.Application.Abstractions;
+using LinkTracker.Scrapper.Application.Abstractions.UnitOfWork;
+using LinkTracker.Scrapper.Domain.Tracking.Repositories;
 using LinkTracker.Scrapper.Application.Dtos.Outbox;
 using LinkTracker.Scrapper.Application.Repositories;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.Notifications;
@@ -21,7 +22,7 @@ public class ProcessAnswersStepTests
         var uow = Substitute.For<IUnitOfWork>();
         var outboxRepo = Substitute.For<IOutboxEventRepository>();
 
-        var question = PipelineTestData.Question(questionId: 101, linkId: 8, title: "Q title", isFirstCheck: false, chatIds: [1]);
+        var question = PipelineTestData.Question(questionId: 101, linkId: Guid.NewGuid(), title: "Q title", isFirstCheck: false, chatIds: [1]);
         var answer = PipelineTestData.Answer(question, answerId: 201, body: new string('a', 250), owner: "alice");
 
         store.CreateAndReturnIfNotExist(Arg.Any<LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Data.AnswerData[]>())

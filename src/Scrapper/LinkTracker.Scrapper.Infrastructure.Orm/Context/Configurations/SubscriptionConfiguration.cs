@@ -8,14 +8,16 @@ public class SubscriptionConfiguration : IEntityTypeConfiguration<Subscription>
 {
     public void Configure(EntityTypeBuilder<Subscription> builder)
     {
-        builder.HasKey(s => new { s.ChatId, s.LinkId });
+        builder.HasKey(e => new { e.ChatId, e.LinkId });
 
-        builder.HasOne(s => s.Chat)
+        builder.HasOne(e => e.Chat)
             .WithMany(c => c.Subscriptions)
-            .HasForeignKey(s => s.ChatId);
+            .HasForeignKey(e => e.ChatId)
+            .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasOne(s => s.Link)
+        builder.HasOne(e => e.Link)
             .WithMany(l => l.Subscriptions)
-            .HasForeignKey(s => s.LinkId);
+            .HasForeignKey(e => e.LinkId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

@@ -30,8 +30,8 @@ public class FetchQuestionsStepTests
 
         var batch = new List<LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Data.QuestionData>
         {
-            PipelineTestData.Question(questionId: 101, linkId: 1),
-            PipelineTestData.Question(questionId: 202, linkId: 2)
+            PipelineTestData.Question(questionId: 101, linkId: Guid.NewGuid()),
+            PipelineTestData.Question(questionId: 202, linkId: Guid.NewGuid())
         };
 
         var result = await sut.ProcessAsync(batch);

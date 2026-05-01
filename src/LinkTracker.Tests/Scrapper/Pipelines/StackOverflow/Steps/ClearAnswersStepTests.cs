@@ -23,9 +23,8 @@ public class ClearAnswersStepTests
         await using var provider = services.BuildServiceProvider();
 
         var sut = new ClearAnswersStep(provider, NullLogger<ClearAnswersStep>.Instance);
-        var output = new BufferBlock<NotificationMessage>();
 
-        var question = PipelineTestData.Question(questionId: 101, linkId: 10);
+        var question = PipelineTestData.Question(questionId: 101, linkId: Guid.NewGuid());
         var answer = PipelineTestData.Answer(question, answerId: 201);
         var batch = new FetchAnswersResult([answer], []);
 

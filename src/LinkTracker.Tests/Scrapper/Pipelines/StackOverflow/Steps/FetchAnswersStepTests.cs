@@ -28,7 +28,7 @@ public class FetchAnswersStepTests
         var options = Options.Create(new StackOverflowPipelineOptions());
         var sut = new FetchAnswersStep(provider, NullLogger<FetchAnswersStep>.Instance, options);
 
-        var question = PipelineTestData.Question(questionId: 101, linkId: 101);
+        var question = PipelineTestData.Question(questionId: 101, linkId: Guid.NewGuid());
         var batches = (await sut.ProcessAsync([question])).ToList();
 
         Assert.Single(batches);
@@ -53,7 +53,7 @@ public class FetchAnswersStepTests
         var options = Options.Create(new StackOverflowPipelineOptions());
         var sut = new FetchAnswersStep(provider, NullLogger<FetchAnswersStep>.Instance, options);
 
-        var question = PipelineTestData.Question(questionId: 101, linkId: 101);
+        var question = PipelineTestData.Question(questionId: 101, linkId: Guid.NewGuid());
         var batches = (await sut.ProcessAsync([question])).ToList();
 
         Assert.Single(batches);
@@ -82,7 +82,7 @@ public class FetchAnswersStepTests
         });
         var sut = new FetchAnswersStep(provider, NullLogger<FetchAnswersStep>.Instance, options);
 
-        var question = PipelineTestData.Question(questionId: 101, linkId: 101);
+        var question = PipelineTestData.Question(questionId: 101, linkId: Guid.NewGuid());
         var batches = (await sut.ProcessAsync([question])).ToList();
 
         Assert.Single(batches);

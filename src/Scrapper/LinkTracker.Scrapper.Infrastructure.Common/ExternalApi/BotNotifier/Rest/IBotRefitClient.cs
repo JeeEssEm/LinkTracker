@@ -1,4 +1,4 @@
-﻿using LinkTracker.Bot.Contracts.Rest;
+using LinkTracker.Bot.Contracts.Rest;
 using Refit;
 
 namespace LinkTracker.Scrapper.Infrastructure.Pipelines.ExternalApi.BotNotifier.Rest;

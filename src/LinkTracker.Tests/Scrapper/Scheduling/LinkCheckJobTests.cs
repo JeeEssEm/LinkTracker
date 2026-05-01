@@ -1,4 +1,5 @@
 using LinkTracker.Scrapper.Application.Repositories;
+using LinkTracker.Scrapper.Domain.Tracking.Repositories;
 using LinkTracker.Scrapper.Application.Scheduling;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.Github;
@@ -24,7 +25,7 @@ public class LinkCheckJobTests
     public async Task Execute_UsesConfiguredBatchSize()
     {
         // Arrange
-        var linkRepo = Substitute.For<ILinkRepository>();
+        var linkRepo = Substitute.For<ILinkBulkRepository>();
         var soStore = Substitute.For<IStackOverflowStore>();
         var githubStore = Substitute.For<IGithubStore>();
 

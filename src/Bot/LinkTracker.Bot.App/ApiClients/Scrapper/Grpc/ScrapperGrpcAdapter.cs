@@ -48,7 +48,7 @@ public class ScrapperGrpcAdapter(ScrapperChatsServiceClient chatsClient, Scrappe
         {
             var resp = await linksClient.ListLinksAsync(new ListLinksRequest { ChatId = chatId });
             return Result.Ok(new ListLinksResponse(
-                resp.Links.Select(lnk => new LinkResponse(lnk.Id, lnk.Url, lnk.Tags.ToList())).ToList(),
+                resp.Links.Select(lnk => new LinkResponse(Guid.Parse(lnk.Id), lnk.Url, lnk.Tags.ToList())).ToList(),
                 resp.Links.Count
             ));
         }

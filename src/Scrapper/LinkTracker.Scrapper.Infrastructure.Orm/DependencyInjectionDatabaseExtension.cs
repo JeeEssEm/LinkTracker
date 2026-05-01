@@ -1,27 +1,39 @@
-﻿using LinkTracker.Scrapper.Application.Abstractions;
+﻿using LinkTracker.Scrapper.Application.Abstractions.UnitOfWork;
+using LinkTracker.Scrapper.Application.QueryServices;
 using LinkTracker.Scrapper.Application.Repositories;
-using LinkTracker.Scrapper.Application.Scraping.Pipelines.Github.Store;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Store;
+using LinkTracker.Scrapper.Domain.Tracking.Repositories;
+using LinkTracker.Scrapper.Domain.Tracking.SourceHandlers.Github;
+using LinkTracker.Scrapper.Domain.Tracking.SourceHandlers.StackOverflow;
 using LinkTracker.Scrapper.Infrastructure.Orm.Context;
+using LinkTracker.Scrapper.Infrastructure.Orm.QueryServices;
 using LinkTracker.Scrapper.Infrastructure.Orm.Repositories;
+using LinkTracker.Scrapper.Infrastructure.Pipelines.BulkServices;
+using LinkTracker.Scrapper.Infrastructure.Pipelines.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Npgsql;
 
 namespace LinkTracker.Scrapper.Infrastructure.Orm;
 
 public static class DependencyInjectionDatabaseExtension
 {
-    public static IServiceCollection AddOrmDatabase(this IServiceCollection services, string connectionString)
+    public static IServiceCollection AddOrmContext(this IServiceCollection services)
     {
-        services.AddDbContext<LinkTrackerContext>(options =>
+        services.AddDbContext<LinkTrackerContext>((sp, options) =>
         {
-            var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
-            dataSourceBuilder.EnableDynamicJson();
-            var dataSource = dataSourceBuilder.Build();
-            options.UseNpgsql(dataSource).UseSnakeCaseNamingConvention();
+            var session = sp.GetRequiredService<DatabaseSession>();
+            var connection = session.GetOrCreateConnection();
+
+            options.UseNpgsql(connection).UseSnakeCaseNamingConvention();
         });
-        services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<ITransactionParticipant>(sp =>
+        {
+            var dbContext = sp.GetRequiredService<LinkTrackerContext>();
+            var p = new TransactionParticipant(dbContext);
+
+            return p;
+        });
+
         return services;
     }
 
@@ -29,11 +41,14 @@ public static class DependencyInjectionDatabaseExtension
     {
         services.AddScoped<ILinkRepository, LinkRepository>();
         services.AddScoped<IChatRepository, ChatRepository>();
-        services.AddScoped<ITagRepository, TagRepository>();
         services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
-        services.AddScoped<IStackOverflowStore, OrmStackOverflowStore>();
+
+        services.AddScoped<ISubscriptionQueryService, SubscriptionQueryService>();
+
         services.AddScoped<IOutboxEventRepository, OrmOutboxRepository>();
-        services.AddScoped<IGithubStore, OrmGithubStore>();
+
+        services.AddScoped<IGithubRepository, OrmGithubRepository>();
+        services.AddScoped<IStackOverflowRepository, StackOverflowRepository>();
 
         return services;
     }

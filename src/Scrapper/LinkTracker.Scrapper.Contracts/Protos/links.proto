@@ -10,7 +10,7 @@ message AddLinkRequest {
 }
 
 message LinkResponse {
-  int64 id = 1;
+  string id = 1;
   string url = 2;
   repeated string tags = 3;
   repeated string filters = 4;
