@@ -198,12 +198,66 @@ services:
       - kafka-1
       - kafka-2
       - kafka-3
+  
+  valkey-master:
+    image: valkey/valkey:8.0
+    container_name: valkey-master
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data/master:/data
+    command: >
+      valkey-server 
+      --requirepass ${VALKEY_PASSWORD} 
+      --protected-mode no
+      --appendonly yes
+    networks:
+      - link-tracker
+
+  valkey-replica-1:
+    image: valkey/valkey:8.0
+    container_name: valkey-replica-1
+    depends_on:
+      - valkey-master
+    volumes:
+      - ./data/replica-1:/data
+    ports:
+      - "6380:6379"
+    command: >
+      valkey-server 
+      --replicaof valkey-master 6379 
+      --masterauth ${VALKEY_PASSWORD} 
+      --requirepass ${VALKEY_PASSWORD} 
+      --protected-mode no
+      --appendonly yes
+    networks:
+      - link-tracker
+
+  valkey-replica-2:
+    image: valkey/valkey:8.0
+    container_name: valkey-replica-2
+    depends_on:
+      - valkey-master
+    volumes:
+      - ./data/replica-2:/data
+    ports:
+      - "6381:6379"
+    command: >
+      valkey-server 
+      --replicaof valkey-master 6379 
+      --masterauth ${VALKEY_PASSWORD} 
+      --requirepass ${VALKEY_PASSWORD} 
+      --protected-mode no
+      --appendonly yes
+    networks:
+      - link-tracker
 
 volumes:
   postgres-data:
   kafka-1-data:
   kafka-2-data:
   kafka-3-data:
+  
 
 networks:
   link-tracker:

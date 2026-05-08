@@ -15,10 +15,10 @@ public abstract class BaseScrapperApiTests(ScrapperWebApplicationFactory factory
         var response = await _client.PostAsync("/tg-chat/100", null);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var addLinkResponse = await PostLink(100, "https://github.com/dotnet/runtime", ["dotnet", "C#"]);
+        var addLinkResponse = await _client.PostLink(100, "https://github.com/dotnet/runtime", ["dotnet", "C#"]);
         Assert.Equal(HttpStatusCode.OK, addLinkResponse.StatusCode);
 
-        var getResponse = await GetLinks(100);
+        var getResponse = await _client.GetLinks(100);
         Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
 
         var body = await getResponse.Content.ReadFromJsonAsync<ListLinksResponse>();
@@ -36,9 +36,9 @@ public abstract class BaseScrapperApiTests(ScrapperWebApplicationFactory factory
     public async Task AddAndRemoveLink()
     {
         await _client.PostAsync("/tg-chat/200", null);
-        await PostLink(200, "https://github.com/dotnet/aspnetcore", ["Web", "Api", "C#"]);
+        await _client.PostLink(200, "https://github.com/dotnet/aspnetcore", ["Web", "Api", "C#"]);
 
-        var deleteResponse = await DeleteLink(200, "https://github.com/dotnet/aspnetcore");
+        var deleteResponse = await _client.DeleteLink(200, "https://github.com/dotnet/aspnetcore");
         Assert.Equal(HttpStatusCode.OK, deleteResponse.StatusCode);
         var deletedLink = await deleteResponse.Content.ReadFromJsonAsync<LinkResponse>();
         Assert.NotNull(deletedLink);
@@ -47,7 +47,7 @@ public abstract class BaseScrapperApiTests(ScrapperWebApplicationFactory factory
         Assert.Contains("Api", deletedLink.Tags);
         Assert.Contains("C#", deletedLink.Tags);
 
-        var getResponse = await GetLinks(200);
+        var getResponse = await _client.GetLinks(200);
         var body = await getResponse.Content.ReadFromJsonAsync<ListLinksResponse>();
         Assert.NotNull(body);
         Assert.DoesNotContain(body.Links, l => l.Url == "https://github.com/dotnet/aspnetcore");
@@ -57,12 +57,12 @@ public abstract class BaseScrapperApiTests(ScrapperWebApplicationFactory factory
     public async Task RemoveLinkFromNonExistentChat()
     {
         await _client.PostAsync("/tg-chat/300", null);
-        await PostLink(300, "https://github.com/dotnet/efcore", []);
+        await _client.PostLink(300, "https://github.com/dotnet/efcore", []);
 
-        var deleteResponse = await DeleteLink(999, "https://github.com/dotnet/efcore");
+        var deleteResponse = await _client.DeleteLink(999, "https://github.com/dotnet/efcore");
         Assert.NotEqual(HttpStatusCode.OK, deleteResponse.StatusCode);
 
-        var getResponse = await GetLinks(300);
+        var getResponse = await _client.GetLinks(300);
         var body = await getResponse.Content.ReadFromJsonAsync<ListLinksResponse>();
         Assert.NotNull(body);
         Assert.Contains(body.Links, l => l.Url == "https://github.com/dotnet/efcore");
@@ -73,7 +73,7 @@ public abstract class BaseScrapperApiTests(ScrapperWebApplicationFactory factory
     {
         await _client.PostAsync("/tg-chat/400", null);
 
-        var addResponse = await PostLink(401, "https://github.com/dotnet/runtime", []);
+        var addResponse = await _client.PostLink(401, "https://github.com/dotnet/runtime", []);
         Assert.NotEqual(HttpStatusCode.OK, addResponse.StatusCode);
     }
 
@@ -83,7 +83,7 @@ public abstract class BaseScrapperApiTests(ScrapperWebApplicationFactory factory
         await _client.PostAsync("/tg-chat/500", null);
         await _client.DeleteAsync("/tg-chat/500");
 
-        var addResponse = await PostLink(500, "https://github.com/dotnet/runtime", []);
+        var addResponse = await _client.PostLink(500, "https://github.com/dotnet/runtime", []);
         Assert.NotEqual(HttpStatusCode.OK, addResponse.StatusCode);
     }
 
@@ -100,13 +100,13 @@ public abstract class BaseScrapperApiTests(ScrapperWebApplicationFactory factory
         await _client.PostAsync("/tg-chat/528", null);
         await _client.PostAsync("/tg-chat/488", null);
 
-        await PostLink(528, "https://stackoverflow.com/questions/123", ["java", "web"]);
-        await PostLink(488, "https://stackoverflow.com/questions/123", ["spring", "api", "web"]);
+        await _client.PostLink(528, "https://stackoverflow.com/questions/123", ["java", "web"]);
+        await _client.PostLink(488, "https://stackoverflow.com/questions/123", ["spring", "api", "web"]);
 
-        await DeleteLink(488, "https://stackoverflow.com/questions/123");
+        await _client.DeleteLink(488, "https://stackoverflow.com/questions/123");
 
-        var resp528 = await GetLinks(528);
-        var resp488 = await GetLinks(488);
+        var resp528 = await _client.GetLinks(528);
+        var resp488 = await _client.GetLinks(488);
 
         var links528 = await resp528.Content.ReadFromJsonAsync<ListLinksResponse>();
         var links488 = await resp488.Content.ReadFromJsonAsync<ListLinksResponse>();
@@ -121,28 +121,7 @@ public abstract class BaseScrapperApiTests(ScrapperWebApplicationFactory factory
         Assert.Contains("web", first.Tags);
     }
 
-    private async Task<HttpResponseMessage> PostLink(long chatId, string url, List<string> tags)
-    {
-        var request = new HttpRequestMessage(HttpMethod.Post, "/links");
-        request.Headers.Add("Tg-Chat-Id", chatId.ToString());
-        request.Content = JsonContent.Create(new AddLinkRequest(url, tags, []));
-        return await _client.SendAsync(request);
-    }
 
-    private async Task<HttpResponseMessage> GetLinks(long chatId)
-    {
-        var request = new HttpRequestMessage(HttpMethod.Get, "/links");
-        request.Headers.Add("Tg-Chat-Id", chatId.ToString());
-        return await _client.SendAsync(request);
-    }
-
-    private async Task<HttpResponseMessage> DeleteLink(long chatId, string url)
-    {
-        var request = new HttpRequestMessage(HttpMethod.Delete, "/links");
-        request.Headers.Add("Tg-Chat-Id", chatId.ToString());
-        request.Content = JsonContent.Create(new RemoveLinkRequest(url));
-        return await _client.SendAsync(request);
-    }
 
     public Task InitializeAsync()
     {
