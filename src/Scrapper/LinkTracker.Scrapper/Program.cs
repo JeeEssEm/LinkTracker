@@ -6,6 +6,7 @@ using LinkTracker.Contracts.Broker;
 using LinkTracker.Contracts.GrpcErrors;
 using LinkTracker.Scrapper.Application.Handlers.Chats;
 using LinkTracker.Scrapper.Application.Handlers.Links;
+using LinkTracker.Scrapper.Application.QueryServices;
 using LinkTracker.Scrapper.Application.Repositories;
 using LinkTracker.Scrapper.Application.Scraping.ApiClients.Bot;
 using LinkTracker.Scrapper.Application.Scraping.ApiClients.Github;
@@ -18,6 +19,7 @@ using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Steps;
 using LinkTracker.Scrapper.Configurations;
 using LinkTracker.Scrapper.Contracts.GrpcErrorProfiles;
+using LinkTracker.Scrapper.Domain.Tracking.Repositories;
 using LinkTracker.Scrapper.Domain.Tracking.Services;
 using LinkTracker.Scrapper.Domain.Tracking.SourceHandlers;
 using LinkTracker.Scrapper.Endpoints.Chats;
@@ -31,6 +33,9 @@ using LinkTracker.Scrapper.Infrastructure.Middleware;
 using LinkTracker.Scrapper.Infrastructure.Orm;
 using LinkTracker.Scrapper.Infrastructure.Orm.Repositories;
 using LinkTracker.Scrapper.Infrastructure.Pipelines.BulkServices;
+using LinkTracker.Scrapper.Infrastructure.Pipelines.Cache;
+using LinkTracker.Scrapper.Infrastructure.Pipelines.Cache.CachedQueryServices;
+using LinkTracker.Scrapper.Infrastructure.Pipelines.Cache.CachedRepositories;
 using LinkTracker.Scrapper.Infrastructure.Pipelines.Database;
 using LinkTracker.Scrapper.Infrastructure.Pipelines.ExternalApi.BotNotifier.Grpc;
 using LinkTracker.Scrapper.Infrastructure.Pipelines.ExternalApi.BotNotifier.Rest;
@@ -42,6 +47,7 @@ using LinkTracker.Scrapper.Infrastructure.Sql;
 using LinkTracker.Scrapper.Scheduling;
 using Quartz;
 using Refit;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -53,6 +59,7 @@ builder.Services.Configure<GithubPipelineOptions>(builder.Configuration.GetSecti
 builder.Services.Configure<NotificationStrategyOptions>(builder.Configuration.GetSection(NotificationStrategyOptions.Position));
 builder.Services.Configure<TopicConfiguration>(builder.Configuration.GetSection(TopicConfiguration.Position));
 builder.Services.Configure<OutboxConfiguration>(builder.Configuration.GetSection(OutboxConfiguration.Position));
+builder.Services.Configure<CacheConfiguration>(builder.Configuration.GetSection(CacheConfiguration.Position));
 
 builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
@@ -215,6 +222,19 @@ builder.Services.AddQuartz(q =>
 builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 
 builder.Services.AddHostedService<OutboxBackgroundService>();
+
+var cacheOptions = builder.Configuration
+    .GetSection(CacheConfiguration.Position)
+    .Get<CacheConfiguration>();
+if (cacheOptions != null && cacheOptions.CacheEnabled)
+{
+    cacheOptions.Validate();
+    builder.Services.AddScoped<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(cacheOptions.ConnectionString!));
+
+    builder.Services.Decorate<ISubscriptionQueryService, CachedSubscriptionQueryService>();
+    builder.Services.Decorate<ISubscriptionRepository, CachedSubscriptionRepository>();
+    builder.Services.Decorate<IChatRepository, CachedChatRepository>();
+}
 
 builder.Logging.AddSeq(builder.Configuration.GetSection("Seq"));
 builder.Logging.AddJsonConsole(options =>
