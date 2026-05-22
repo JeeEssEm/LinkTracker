@@ -7,7 +7,6 @@ using LinkTracker.Contracts.GrpcErrors;
 using LinkTracker.Scrapper.Application.Handlers.Chats;
 using LinkTracker.Scrapper.Application.Handlers.Links;
 using LinkTracker.Scrapper.Application.QueryServices;
-using LinkTracker.Scrapper.Application.Repositories;
 using LinkTracker.Scrapper.Application.Scraping.ApiClients.Bot;
 using LinkTracker.Scrapper.Application.Scraping.ApiClients.Github;
 using LinkTracker.Scrapper.Application.Scraping.ApiClients.StackOverflow;
@@ -29,9 +28,9 @@ using LinkTracker.Scrapper.Endpoints.Links;
 using LinkTracker.Scrapper.Endpoints.Links.AddLink;
 using LinkTracker.Scrapper.Endpoints.Links.GetLinks;
 using LinkTracker.Scrapper.Endpoints.Links.RemoveLink;
+using LinkTracker.Scrapper.Extensions;
 using LinkTracker.Scrapper.Infrastructure.Middleware;
 using LinkTracker.Scrapper.Infrastructure.Orm;
-using LinkTracker.Scrapper.Infrastructure.Orm.Repositories;
 using LinkTracker.Scrapper.Infrastructure.Pipelines.BulkServices;
 using LinkTracker.Scrapper.Infrastructure.Pipelines.Cache;
 using LinkTracker.Scrapper.Infrastructure.Pipelines.Cache.CachedQueryServices;
@@ -50,6 +49,11 @@ using Refit;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
+using var loggerFactory = LoggerFactory.Create(loggingBuilder =>
+{
+    loggingBuilder.AddConsole();
+});
+var logger = loggerFactory.CreateLogger<Program>();
 
 builder.Services.Configure<SchedulerOptions>(builder.Configuration.GetSection(SchedulerOptions.Position));
 builder.Services.Configure<BotClientOptions>(builder.Configuration.GetSection(BotClientOptions.Position));
@@ -60,6 +64,7 @@ builder.Services.Configure<NotificationStrategyOptions>(builder.Configuration.Ge
 builder.Services.Configure<TopicConfiguration>(builder.Configuration.GetSection(TopicConfiguration.Position));
 builder.Services.Configure<OutboxConfiguration>(builder.Configuration.GetSection(OutboxConfiguration.Position));
 builder.Services.Configure<CacheConfiguration>(builder.Configuration.GetSection(CacheConfiguration.Position));
+builder.Services.Configure<ResilienceOptions>(builder.Configuration.GetSection(ResilienceOptions.Position));
 
 builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
@@ -74,13 +79,26 @@ builder.Services.AddScoped<AddLinkHandler>();
 builder.Services.AddScoped<RemoveLinkHandler>();
 builder.Services.AddScoped<GetLinksHandler>();
 
+var resilienceOptions = builder.Configuration
+    .GetSection(ResilienceOptions.Position)
+    .Get<ResilienceOptions>();
+if (resilienceOptions == null)
+{
+    logger.LogWarning("Options for fault tolerance are not set. Using default");
+    resilienceOptions = new ResilienceOptions();
+}
+
+builder.Services.AddPerIpRateLimiting(resilienceOptions.RateLimitOptions);
+
 builder.Services
     .AddRefitClient<IGithubRefitClient>()
-    .ConfigureHttpClient(c => c.BaseAddress = new Uri("https://api.github.com"));
+    .ConfigureHttpClient(c => c.BaseAddress = new Uri("https://api.github.com"))
+    .AddResilienceHandler("github", b => b.BuildPipeline(resilienceOptions.GithubClientOptions));
 
 builder.Services
     .AddRefitClient<IStackOverflowRefitClient>()
-    .ConfigureHttpClient(c => c.BaseAddress = new Uri("https://api.stackexchange.com"));
+    .ConfigureHttpClient(c => c.BaseAddress = new Uri("https://api.stackexchange.com"))
+    .AddResilienceHandler("stackoverflow", b => b.BuildPipeline(resilienceOptions.StackOverflowClientOptions));
 
 builder.Services.AddScoped<IStackOverflowClient, StackOverflowClient>();
 builder.Services.AddScoped<IGithubClient, GithubClient>();
@@ -130,7 +148,8 @@ else
 {
     builder.Services
         .AddRefitClient<IBotRefitClient>()
-        .ConfigureHttpClient(c => c.BaseAddress = new Uri(botClientOptions.BaseUrl));
+        .ConfigureHttpClient(c => c.BaseAddress = new Uri(botClientOptions.BaseUrl))
+        .AddResilienceHandler("bot", b => b.BuildPipeline(resilienceOptions.BotClientOptions));
     builder.Services.AddScoped<IBotClient, BotRestAdapter>();
 }
 
@@ -144,27 +163,15 @@ if (notificationStrategyOptions == null)
 }
 else
 {
+    var topicConfig = builder.Configuration
+        .GetSection(TopicConfiguration.Position)
+        .Get<TopicConfiguration>() ?? new TopicConfiguration();
+
     switch (notificationStrategyOptions.Strategy)
     {
         case NotificationStrategies.Kafka:
-            notificationStrategyOptions.ValidateKafkaStrategy();
+            await builder.Services.PrepareAsyncNotificationStrategy(topicConfig, notificationStrategyOptions);
 
-            var topicConfig = builder.Configuration
-                .GetSection(TopicConfiguration.Position)
-                .Get<TopicConfiguration>() ?? new TopicConfiguration();
-
-            await KafkaBrokerManager.EnsureTopicExistsAsync(topicConfig, notificationStrategyOptions.Topic!, notificationStrategyOptions.BootstrapServers!);
-
-            builder.Services.AddSingleton<IProducer<Null, string>>(_ =>
-            {
-                var config = new ProducerConfig
-                {
-                    BootstrapServers = notificationStrategyOptions.BootstrapServers,
-                    Acks = Acks.Leader,
-                    BrokerAddressFamily = BrokerAddressFamily.V4
-                };
-                return new ProducerBuilder<Null, string>(config).Build();
-            });
             builder.Services.AddSingleton<INotificationStrategy, AsyncNotificationStrategy>();
             break;
         case NotificationStrategies.Grpc:
@@ -172,6 +179,7 @@ else
             {
                 throw new ArgumentException("Cannot init notifications via gRPC if BotClientOptions.UseGrpc = false");
             }
+
             builder.Services.AddScoped<INotificationStrategy, SyncNotificationStrategy>();
             break;
         case NotificationStrategies.Http:
@@ -180,6 +188,20 @@ else
                 throw new ArgumentException("Cannot init notifications via HTTP if BotClientOptions.UseGrpc = true");
             }
             builder.Services.AddScoped<INotificationStrategy, SyncNotificationStrategy>();
+
+            if (notificationStrategyOptions.FallbackToKafka)
+            {
+                await builder.Services.PrepareAsyncNotificationStrategy(topicConfig, notificationStrategyOptions);
+
+                builder.Services.AddSingleton<AsyncNotificationStrategy>();
+                builder.Services.AddScoped<SyncNotificationStrategy>();
+
+                builder.Services.AddScoped<INotificationStrategy, FallbackNotificationStrategy>();
+            }
+            else
+            {
+                builder.Services.AddScoped<INotificationStrategy, SyncNotificationStrategy>();
+            }
             break;
     }
 }
@@ -262,6 +284,7 @@ app.UseMiddleware<RequestLoggingMiddleware>();
 
 app.UseHttpsRedirection();
 
+app.UseRateLimiter();
 app.MapAddChat();
 app.MapRemoveChat();
 app.MapAddLink();

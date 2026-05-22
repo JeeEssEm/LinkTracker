@@ -1,6 +1,6 @@
-﻿using LinkTracker.Bot.App.Features.Api.Shared.ResultExtensions;
+﻿using LinkTracker.Bot.App.Extensions;
+using LinkTracker.Bot.App.Features.Api.Shared.ResultExtensions;
 using LinkTracker.Bot.Contracts.Rest;
-using LinkTracker.Bot.Grpc.Links;
 using LinkTracker.Contracts.Rest;
 
 namespace LinkTracker.Bot.App.Features.Api.Updates;
@@ -15,6 +15,7 @@ public static class UpdatesEndpoint
             return result.ToMinimalApiResult();
         })
         .Produces(200)
-        .Produces<ApiErrorResponse>(400);
+        .Produces<ApiErrorResponse>(400)
+        .RequireRateLimiting(RateLimitPolicies.PerIp);
     }
 }
