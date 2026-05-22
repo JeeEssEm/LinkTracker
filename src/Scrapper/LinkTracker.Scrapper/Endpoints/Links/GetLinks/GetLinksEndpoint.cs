@@ -2,6 +2,7 @@
 using LinkTracker.Scrapper.Application.Handlers.Links;
 using LinkTracker.Scrapper.Contracts.Dtos.Links;
 using LinkTracker.Scrapper.Endpoints.Shared;
+using LinkTracker.Scrapper.Extensions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LinkTracker.Scrapper.Endpoints.Links.GetLinks;
@@ -19,6 +20,7 @@ public static class GetLinksEndpoint
         })
         .Produces<ListLinksResponse>(200)
         .Produces<ApiErrorResponse>(400)
-        .Produces<ApiErrorResponse>(404);
+        .Produces<ApiErrorResponse>(404)
+        .RequireRateLimiting(RateLimitPolitics.PerIpLimit);
     }
 }

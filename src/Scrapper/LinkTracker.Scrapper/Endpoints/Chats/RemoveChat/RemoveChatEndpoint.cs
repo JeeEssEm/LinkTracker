@@ -1,6 +1,7 @@
 ﻿using LinkTracker.Contracts.Rest;
 using LinkTracker.Scrapper.Application.Handlers.Chats;
 using LinkTracker.Scrapper.Endpoints.Shared;
+using LinkTracker.Scrapper.Extensions;
 
 namespace LinkTracker.Scrapper.Endpoints.Chats.RemoveChat;
 
@@ -15,6 +16,7 @@ public static class RemoveChatEndpoint
         })
         .Produces(200)
         .Produces<ApiErrorResponse>(400)
-        .Produces<ApiErrorResponse>(404);
+        .Produces<ApiErrorResponse>(404)
+        .RequireRateLimiting(RateLimitPolitics.PerIpLimit);
     }
 }

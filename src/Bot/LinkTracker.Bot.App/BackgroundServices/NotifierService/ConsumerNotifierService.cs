@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using Confluent.Kafka;
+using LinkTracker.Bot.App.Configurations;
 using LinkTracker.Bot.Contracts.Rest;
 using LinkTracker.Contracts.Broker;
 using Microsoft.Extensions.Options;

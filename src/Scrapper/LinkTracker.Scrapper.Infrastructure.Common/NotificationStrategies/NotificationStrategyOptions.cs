@@ -6,6 +6,7 @@ public class NotificationStrategyOptions
     public NotificationStrategies Strategy { get; init; } = NotificationStrategies.Kafka;
     public string? Topic { get; init; }
     public string? BootstrapServers { get; init; }
+    public bool FallbackToKafka { get; init; } = false;
 
     public void ValidateKafkaStrategy()
     {

@@ -1,4 +1,4 @@
-﻿namespace LinkTracker.Bot.App;
+﻿namespace LinkTracker.Bot.App.Configurations;
 
 public class KafkaConsumerOptions
 {

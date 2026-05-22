@@ -5,6 +5,8 @@ using LinkTracker.Bot.App.ApiClients.Scrapper;
 using LinkTracker.Bot.App.ApiClients.Scrapper.Grpc;
 using LinkTracker.Bot.App.ApiClients.Scrapper.Rest;
 using LinkTracker.Bot.App.BackgroundServices.NotifierService;
+using LinkTracker.Bot.App.Configurations;
+using LinkTracker.Bot.App.Extensions;
 using LinkTracker.Bot.App.Features.Api;
 using LinkTracker.Bot.App.Features.Api.Updates;
 using LinkTracker.Bot.App.Features.Bot.TrackLink.Flow;
@@ -20,15 +22,33 @@ using LinkTracker.Scrapper.Contracts.GrpcErrorProfiles;
 using LinkTracker.Scrapper.Grpc.Chats;
 using LinkTracker.Scrapper.Grpc.Links;
 using Microsoft.Extensions.Options;
+using Polly;
 using Refit;
 using Telegram.Bot;
 
 var builder = WebApplication.CreateBuilder(args);
+using var loggerFactory = LoggerFactory.Create(loggingBuilder =>
+{
+    loggingBuilder.AddConsole();
+});
+var logger = loggerFactory.CreateLogger<Program>();
 
 builder.Services.Configure<BotOptions>(builder.Configuration.GetSection(BotOptions.Position));
 builder.Services.Configure<ScrapperClientOptions>(builder.Configuration.GetSection(ScrapperClientOptions.Position));
 builder.Services.Configure<KafkaConsumerOptions>(builder.Configuration.GetSection(KafkaConsumerOptions.Position));
 builder.Services.Configure<TopicConfiguration>(builder.Configuration.GetSection(TopicConfiguration.Position));
+builder.Services.Configure<ResilienceOptions>(builder.Configuration.GetSection(ResilienceOptions.Position));
+
+var resilienceOptions = builder.Configuration
+    .GetSection(ResilienceOptions.Position)
+    .Get<ResilienceOptions>();
+if (resilienceOptions == null)
+{
+    logger.LogWarning("Resilience options are not configured!");
+    resilienceOptions = new ResilienceOptions();
+}
+
+builder.Services.AddPerIpRateLimiting(resilienceOptions.RateLimitOptions);
 
 builder.Services
     .AddHttpClient("telegram_bot_client")
@@ -36,7 +56,8 @@ builder.Services
     {
         var botConfig = sp.GetRequiredService<IOptions<BotOptions>>().Value;
         return new TelegramBotClient(botConfig.Token, httpClient);
-    });
+    })
+    .AddResilienceHandler("telegram", b => b.BuildPipeline(resilienceOptions.TelegramClientOptions));
 builder.Services.AddScoped<LinkUpdatesHandler>();
 
 builder.Services.AddEndpointsApiExplorer();
@@ -89,7 +110,8 @@ else
         {
             var scrapperConfig = sp.GetRequiredService<IOptions<ScrapperClientOptions>>().Value;
             c.BaseAddress = new Uri(scrapperConfig.BaseUrl);
-        });
+        })
+        .AddResilienceHandler("scrapper", b => b.BuildPipeline(resilienceOptions.ScrapperClientOptions));
     builder.Services.AddScoped<IScrapperClient, ScrapperRestAdapter>();
 }
 
@@ -126,7 +148,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapGrpcService<BotGrpcService>();
-
+app.UseRateLimiter();
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 app.MapUpdates();
 
