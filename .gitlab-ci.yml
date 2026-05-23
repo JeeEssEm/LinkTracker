@@ -34,7 +34,7 @@ module_test:
       allow_failure: false
     - when: never
   script:
-    - dotnet test --filter "FullyQualifiedName!~LinkTracker.Tests.Scrapper.Repositories&FullyQualifiedName!~LinkTracker.Tests.Scrapper.Api&FullyQualifiedName!~LinkTracker.Tests.Scrapper.Pipelines.Integration&FullyQualifiedName!~LinkTracker.Tests.Interservice&FullyQualifiedName!~LinkTracker.Tests.Scrapper.Caching&FullyQualifiedName!~LinkTracker.Tests.Scrapper.Integration&FullyQualifiedName!~LinkTracker.Tests.Bot.Integration"
+    - dotnet test --filter "FullyQualifiedName!~LinkTracker.Tests.Scrapper.Repositories&FullyQualifiedName!~LinkTracker.Tests.Scrapper.Api&FullyQualifiedName!~LinkTracker.Tests.Scrapper.Pipelines.Integration&FullyQualifiedName!~LinkTracker.Tests.Interservice&FullyQualifiedName!~LinkTracker.Tests.Scrapper.Caching&FullyQualifiedName!~LinkTracker.Tests.Scrapper.Integration&FullyQualifiedName!~LinkTracker.Tests.Bot.Integration&FullyQualifiedName!~LinkTracker.Tests.AiAgentService"
 
 integration_test_api_repo:
   image: mcr.microsoft.com/dotnet/sdk:9.0
@@ -86,4 +86,4 @@ integration_test_pipelines_interservice:
     - curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-27.3.1.tgz | tar -xz --strip-components=1 -C /usr/local/bin docker/docker
     - echo "$CI_JOB_TOKEN" | docker login gitlab.education.tbank.ru:443 -u gitlab-ci-token --password-stdin
   script:
-    - dotnet test --filter "FullyQualifiedName~LinkTracker.Tests.Scrapper.Pipelines.Integration|FullyQualifiedName~LinkTracker.Tests.Interservice"
+    - dotnet test --filter "FullyQualifiedName~LinkTracker.Tests.Scrapper.Pipelines.Integration|FullyQualifiedName~LinkTracker.Tests.Interservice|FullyQualifiedName~LinkTracker.Tests.AiAgentService"

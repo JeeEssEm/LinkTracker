@@ -5,6 +5,7 @@ using LinkTracker.Scrapper.Application.Repositories;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.Shared;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Data;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Store;
+using LinkTracker.Scrapper.Contracts.Dtos.Notifications;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -43,9 +44,10 @@ public class ProcessAnswersStep(
             {
                 if (!answer.Question.Link.IsFirstCheck)
                 {
-                    events.Add(new CreateOutboxEvent(new LinkUpdateRequest(
+                    events.Add(new CreateOutboxEvent(new UpdateMessage(
                         answer.Question.Link.Id,
                         answer.Question.Link.Url,
+                        answer.OwnerDisplayName,
                         $"""
                          📌 {answer.Question.Link.Url}
 

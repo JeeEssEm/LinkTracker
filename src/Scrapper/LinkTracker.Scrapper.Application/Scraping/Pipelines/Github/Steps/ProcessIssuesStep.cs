@@ -5,6 +5,7 @@ using LinkTracker.Scrapper.Application.Repositories;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.Github.Data;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.Github.Store;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.Shared;
+using LinkTracker.Scrapper.Contracts.Dtos.Notifications;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -48,7 +49,7 @@ public class ProcessIssuesStep(IServiceProvider serviceProvider, ILogger<Process
                                {TextUtilities.Truncate(issue.Description, PreviewDescriptionLength)}
                                """;
 
-                    events.Add(new CreateOutboxEvent(new LinkUpdateRequest(link.Id, link.Url, text, link.ChatIdsToNotify)));
+                    events.Add(new CreateOutboxEvent(new UpdateMessage(link.Id, link.Url, issue.Username, text, link.ChatIdsToNotify)));
                 }
             }
             await outboxRepo.CreateAsync(events);

@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Confluent.Kafka" Version="2.14.0" />
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.14"/>
+        <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.6.0" />
+        <PackageReference Include="Polly" Version="8.6.6" />
+        <PackageReference Include="Refit" Version="10.1.6" />
+        <PackageReference Include="Refit.HttpClientFactory" Version="10.1.6" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\..\Bot\LinkTracker.Bot.Contracts\LinkTracker.Bot.Contracts.csproj" />
+      <ProjectReference Include="..\..\Contracts\LinkTracker.Contracts.Broker\LinkTracker.Contracts.Broker.csproj" />
+      <ProjectReference Include="..\..\Scrapper\LinkTracker.Scrapper.Contracts\LinkTracker.Scrapper.Contracts.csproj" />
+    </ItemGroup>
+
+</Project>

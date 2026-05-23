@@ -143,7 +143,7 @@ public class KafkaMessagingTests : IAsyncLifetime
         var report = await producer.ProduceAsync(_topic, new Message<Null, string>()
         {
             Value = JsonSerializer.Serialize(
-                new LinkUpdateRequest(Guid.NewGuid(), "https://hello.com", "new notification sdnly", chats)
+                new LinkUpdateRequest(Guid.NewGuid(), "https://hello.com", "new notification sdnly", chats, "HIGH")
                 )
         }
         );

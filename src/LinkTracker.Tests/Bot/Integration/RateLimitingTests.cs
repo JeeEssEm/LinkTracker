@@ -2,7 +2,7 @@
 using System.Net.Http.Json;
 using LinkTracker.Bot.Contracts.Rest;
 
-namespace LinkTracker.Tests.Bot.Resilience;
+namespace LinkTracker.Tests.Bot.Integration;
 
 public class RateLimitingTests : IClassFixture<BotWebApplicationFactory>
 {
@@ -27,14 +27,14 @@ public class RateLimitingTests : IClassFixture<BotWebApplicationFactory>
         {
             var response = await _client.PostAsync(
                 "/updates",
-                JsonContent.Create(new LinkUpdateRequest(Guid.NewGuid(), "www.example.com", "hi", [123123]))
+                JsonContent.Create(new LinkUpdateRequest(Guid.NewGuid(), "www.example.com", "hi", [123123], "HIGH"))
             );
             Assert.NotEqual(HttpStatusCode.TooManyRequests, response.StatusCode);
         }
 
         var exceeded = await _client.PostAsync(
             "/updates",
-            JsonContent.Create(new LinkUpdateRequest(Guid.NewGuid(), "www.example.com", "hi", [123123])));
+            JsonContent.Create(new LinkUpdateRequest(Guid.NewGuid(), "www.example.com", "hi", [123123], "HIGH")));
         Assert.Equal(HttpStatusCode.TooManyRequests, exceeded.StatusCode);
     }
 }

@@ -43,6 +43,7 @@ services:
       DatabaseOptions__ConnectionString: Host=postgres;Port=5432;Database=${POSTGRES_DB:-link_tracker};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
       BotClientOptions__BaseUrl: ${SCRAPPER_TO_BOT_BASE_URL:-http://bot:50051}
       BotClientOptions__UseGrpc: "${SCRAPPER_TO_BOT_USE_GRPC:-true}"
+      NotificationStrategyOptions__BootstrapServers: ${KAFKA_BOOTSTRAP_SERVERS:-kafka-1:9092,kafka-2:9092,kafka-3:9092}
       Kestrel__Endpoints__Http__Url: http://0.0.0.0:${SCRAPPER_HTTP_INTERNAL_PORT:-8010}
       Kestrel__Endpoints__Http__Protocols: Http1
       Kestrel__Endpoints__Grpc__Url: http://0.0.0.0:${SCRAPPER_GRPC_INTERNAL_PORT:-50052}
@@ -72,6 +73,7 @@ services:
       BotOptions__Token: ${TELEGRAM_BOT_TOKEN:-}
       ScrapperClientOptions__BaseUrl: ${BOT_TO_SCRAPPER_BASE_URL:-http://scrapper:50052}
       ScrapperClientOptions__UseGrpc: "${BOT_TO_SCRAPPER_USE_GRPC:-true}"
+      KafkaConsumerOptions__BootstrapServers: ${KAFKA_BOOTSTRAP_SERVERS:-kafka-1:9092,kafka-2:9092,kafka-3:9092}
       Kestrel__Endpoints__Http__Url: http://0.0.0.0:${BOT_HTTP_INTERNAL_PORT:-8009}
       Kestrel__Endpoints__Http__Protocols: Http1
       Kestrel__Endpoints__Grpc__Url: http://0.0.0.0:${BOT_GRPC_INTERNAL_PORT:-50051}
@@ -83,6 +85,29 @@ services:
     networks:
       - link-tracker
 
+  ai-agent-service:
+    build:
+      context: .
+      dockerfile: src/AiAgentService/AiAgentService.Web/Dockerfile
+    depends_on:
+      - kafka-1
+      - kafka-2
+      - kafka-3
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      KafkaConfiguration__BootstrapServers: ${KAFKA_BOOTSTRAP_SERVERS:-kafka-1:9092,kafka-2:9092,kafka-3:9092}
+      Filtering__StopWords__0: ${FILTERING_STOP_WORDS_0:-spam}
+      Filtering__StopWords__1: ${FILTERING_STOP_WORDS_1:-ads}
+      Filtering__ExcludedAuthors__0: ${FILTERING_EXCLUDED_AUTHORS_0:-bot-user}
+      Filtering__MinLength: ${FILTERING_MINLENGTH:-20}
+      Filtering__Summarization__Threshold: ${FILTERING_SUMMARIZATION_THRESHOLD:-500}
+      AiApiConfiguration__Url: ${AI_API_URL:-https://openrouter.ai}
+      AiApiConfiguration__ApiKey: ${AI_API_KEY:-}
+      
+    restart: unless-stopped
+    networks:
+      - link-tracker
+    
   kafka-1:
     image: apache/kafka:3.8.1
     container_name: kafka-1
