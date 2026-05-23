@@ -6,6 +6,7 @@ using LinkTracker.Bot.Contracts.Rest;
 using LinkTracker.Scrapper.Application.Abstractions.UnitOfWork;
 using LinkTracker.Scrapper.Application.Dtos.Outbox;
 using LinkTracker.Scrapper.Application.Repositories;
+using LinkTracker.Scrapper.Contracts.Dtos.Notifications;
 
 namespace LinkTracker.Scrapper.Application.Scraping.Pipelines.Github.Steps;
 
@@ -40,7 +41,7 @@ public class ProcessDeletedRepositoriesStep(IServiceProvider serviceProvider, IL
                                
                                ⚠️Репозиторий {repo.Owner}/{repo.Repo} удален или закрыт в Github. Подписка удалена.
                                """;
-                    events.Add(new CreateOutboxEvent(new LinkUpdateRequest(repo.Link.Id, repo.Link.Url, text, repo.Link.ChatIdsToNotify)));
+                    events.Add(new CreateOutboxEvent(new UpdateMessage(repo.Link.Id, repo.Link.Url, text, repo.Owner, repo.Link.ChatIdsToNotify)));
                 }
             }
 

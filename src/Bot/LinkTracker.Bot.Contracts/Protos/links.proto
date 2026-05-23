@@ -8,7 +8,8 @@ message LinkUpdatesRequest {
   string id = 1;
   string url = 2;
   string description = 3;
-  repeated int64 chat_ids = 4;
+  string priority = 4;
+  repeated int64 chat_ids = 5;
 }
 
 

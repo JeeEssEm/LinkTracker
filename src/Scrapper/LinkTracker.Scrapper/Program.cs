@@ -251,7 +251,7 @@ var cacheOptions = builder.Configuration
 if (cacheOptions != null && cacheOptions.CacheEnabled)
 {
     cacheOptions.Validate();
-    builder.Services.AddScoped<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(cacheOptions.ConnectionString!));
+    builder.Services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(cacheOptions.ConnectionString!));
 
     builder.Services.Decorate<ISubscriptionQueryService, CachedSubscriptionQueryService>();
     builder.Services.Decorate<ISubscriptionRepository, CachedSubscriptionRepository>();

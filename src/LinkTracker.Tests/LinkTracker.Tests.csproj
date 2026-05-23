@@ -34,6 +34,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\AiAgentService\AiAgentService.Web\AiAgentService.Web.csproj" />
       <ProjectReference Include="..\Bot\LinkTracker.Bot.App\LinkTracker.Bot.App.csproj" />
       <ProjectReference Include="..\Scrapper\LinkTracker.Scrapper.Domain\LinkTracker.Scrapper.Domain.csproj" />
       <ProjectReference Include="..\Scrapper\LinkTracker.Scrapper.Errors\LinkTracker.Scrapper.Errors.csproj" />

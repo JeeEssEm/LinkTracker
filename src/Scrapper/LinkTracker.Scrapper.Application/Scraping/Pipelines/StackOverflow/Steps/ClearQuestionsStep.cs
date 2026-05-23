@@ -4,6 +4,7 @@ using LinkTracker.Scrapper.Application.Dtos.Outbox;
 using LinkTracker.Scrapper.Application.Repositories;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Data;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Results;
+using LinkTracker.Scrapper.Contracts.Dtos.Notifications;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -52,7 +53,7 @@ public class ClearQuestionsStep(
         IOutboxEventRepository outboxRepo)
     {
         var events = bannedQuestions.Select(q => new CreateOutboxEvent(
-            new LinkUpdateRequest(q.Link.Id, q.Link.Url, "Ваша ссылка больше не отслеживается, так как она не существует на StackOverflow", q.Link.ChatIdsToNotify)
+            new UpdateMessage(q.Link.Id, q.Link.Url, "System", "Ваша ссылка больше не отслеживается, так как она не существует на StackOverflow", q.Link.ChatIdsToNotify)
         ));
         await outboxRepo.CreateAsync(events);
     }

@@ -78,7 +78,7 @@ public class FallbackTests : IAsyncLifetime
             new OutboxEvent(
                 1,
                 [],
-                JsonSerializer.Serialize(new LinkUpdateRequest(Guid.NewGuid(), "https://some-cool-web.com", "desc", [123])),
+                JsonSerializer.Serialize(new LinkUpdateRequest(Guid.NewGuid(), "https://some-cool-web.com", "desc", [123], "HIGH")),
                 0,
                 [],
                 EventId.LinkUpdated, EventStatus.Pending, DateTime.UtcNow, DateTime.UtcNow

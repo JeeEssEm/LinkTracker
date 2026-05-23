@@ -9,6 +9,7 @@ public static class UpdatesMapper
         Guid.Parse(request.Id),
         request.Url,
         request.Description,
-        request.ChatIds
+        request.ChatIds,
+        request.Priority
     );
 }
