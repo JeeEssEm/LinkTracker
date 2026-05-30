@@ -7,7 +7,7 @@ public class AggregateFilter(IEnumerable<IMessageFilter> filters)
 {
     private readonly IMessageFilter[] _filters = filters.ToArray();
 
-    public MessageWrap Handle(MessageWrap message)
+    public MessageData Handle(MessageData message)
     {
         if (_filters.Any(messageFilter => messageFilter.IsInvalid(message)))
         {

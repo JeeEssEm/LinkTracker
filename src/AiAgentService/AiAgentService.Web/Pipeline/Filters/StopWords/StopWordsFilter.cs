@@ -8,7 +8,7 @@ namespace AiAgentService.Web.Pipeline.Filters.StopWords;
 
 public class StopWordsFilter(IOptions<FiltersConfiguration> config, ILogger<StopWordsFilter> logger) : LoggingMessageFilter(logger)
 {
-    protected override bool CheckInvalid(MessageWrap message)
+    protected override bool CheckInvalid(MessageData message)
     {
         return config.Value.StopWords.Any(stopWord => message.Message.Description.Contains(stopWord));
     }

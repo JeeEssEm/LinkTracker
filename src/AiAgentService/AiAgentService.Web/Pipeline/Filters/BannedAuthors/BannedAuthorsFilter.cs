@@ -7,7 +7,7 @@ namespace AiAgentService.Web.Pipeline.Filters.BannedAuthors;
 
 public class BannedAuthorsFilter(IOptions<FiltersConfiguration> config, ILogger<BannedAuthorsFilter> logger) : LoggingMessageFilter(logger)
 {
-    protected override bool CheckInvalid(MessageWrap message)
+    protected override bool CheckInvalid(MessageData message)
     {
         return config.Value.ExcludedAuthors.Contains(message.Message.Author);
     }

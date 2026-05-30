@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 
 namespace AiAgentService.Web.Pipeline.Handlers.Kafka;
 
-public class SendToKafkaHandler(IProducer<Null, string> producer, IOptions<KafkaConfiguration> config)
+public class SendToKafkaHandler(IProducer<Null, string> producer, IOptions<KafkaConfiguration> config) : ISendToKafkaHandler
 {
     public async Task<bool> Handle(object message)
     {

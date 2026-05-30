@@ -3,8 +3,8 @@ using LinkTracker.Scrapper.Contracts.Dtos.Notifications;
 
 namespace AiAgentService.Web.Pipeline.Data;
 
-public record MessageWrap(
+public record MessageData(
     UpdateMessage Message,
     TopicPartitionOffset Offset,
-    IConsumer<Null, string> Consumer,
+    MessagePriority Priority = MessagePriority.Low,
     bool IsFiltered = false);

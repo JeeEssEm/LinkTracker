@@ -7,7 +7,7 @@ namespace AiAgentService.Web.Pipeline.Filters.LengthFilter;
 
 public class LengthFilter(IOptions<FiltersConfiguration> config, ILogger<LengthFilter> logger) : LoggingMessageFilter(logger)
 {
-    protected override bool CheckInvalid(MessageWrap message)
+    protected override bool CheckInvalid(MessageData message)
     {
         return message.Message.Description.Length < config.Value.MinLength;
     }
