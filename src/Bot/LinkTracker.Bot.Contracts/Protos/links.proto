@@ -6,7 +6,6 @@ option csharp_namespace = "LinkTracker.Bot.Grpc.Links";
 
 message LinkUpdatesRequest {
   string id = 1;
-  string url = 2;
   string description = 3;
   string priority = 4;
   repeated int64 chat_ids = 5;

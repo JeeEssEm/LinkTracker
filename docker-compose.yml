@@ -95,15 +95,41 @@ services:
       - kafka-3
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
-      KafkaConfiguration__BootstrapServers: ${KAFKA_BOOTSTRAP_SERVERS:-kafka-1:9092,kafka-2:9092,kafka-3:9092}
-      Filtering__StopWords__0: ${FILTERING_STOP_WORDS_0:-spam}
-      Filtering__StopWords__1: ${FILTERING_STOP_WORDS_1:-ads}
-      Filtering__ExcludedAuthors__0: ${FILTERING_EXCLUDED_AUTHORS_0:-bot-user}
-      Filtering__MinLength: ${FILTERING_MINLENGTH:-20}
-      Filtering__Summarization__Threshold: ${FILTERING_SUMMARIZATION_THRESHOLD:-500}
+  
       AiApiConfiguration__Url: ${AI_API_URL:-https://openrouter.ai}
       AiApiConfiguration__ApiKey: ${AI_API_KEY:-}
+  
+      KafkaConfiguration__BootstrapServers: ${KAFKA_BOOTSTRAP_SERVERS:-kafka-1:9092,kafka-2:9092,kafka-3:9092}
+      KafkaConfiguration__ProducerTopic: ${KAFKA_PRODUCER_TOPIC:-output-topic}
+      KafkaConfiguration__ConsumerTopic: ${KAFKA_CONSUMER_TOPIC:-input-topic}
+      KafkaConfiguration__GroupId: ${KAFKA_GROUP_ID:-ai-agent-group}
+      KafkaConfiguration__AutoOffsetReset: ${KAFKA_AUTO_OFFSET_RESET:-Latest}
+      KafkaConfiguration__Acks: ${KAFKA_ACKS:-Leader}
+  
+      Filtering__MinLength: ${FILTERING_MIN_LENGTH:-20}
+      Filtering__StopWords__0: ${FILTERING_STOP_WORDS_0:-spam}
+      Filtering__ExcludedAuthors__0: ${FILTERING_EXCLUDED_AUTHORS_0:-bot-user}
+  
+      Filtering__Summarization__Threshold: ${FILTERING_SUMMARIZATION_THRESHOLD:-200}
+      Filtering__Summarization__AiSummarizationEnabled: ${FILTERING_SUMMARIZATION_AI_ENABLED:-false}
+      Filtering__Summarization__Model: ${FILTERING_SUMMARIZATION_MODEL:-meta-llama/llama-3.3-70b-instruct}
+      Filtering__Summarization__SummarizationPrompt: ${FILTERING_SUMMARIZATION_PROMPT:-Summarize the following update in 2–3 sentences}
+      Filtering__Summarization__Temperature: ${FILTERING_SUMMARIZATION_TEMPERATURE:-0.3}
+      Filtering__Summarization__MaxTokens: ${FILTERING_SUMMARIZATION_MAX_TOKENS:-8192}
+      Filtering__Summarization__NumberOfParallelRequests: ${FILTERING_SUMMARIZATION_PARALLEL_REQUESTS:-1}
+      Filtering__Summarization__BoundedCapacity: ${FILTERING_SUMMARIZATION_BOUNDED_CAPACITY:-5}
+  
+      Grouping__WindowMs: ${GROUPING_WINDOW_MS:-3000}
+      Grouping__MaxGroupBatchSize: ${GROUPING_MAX_BATCH_SIZE:-50}
+  
+      Prioritization__AiPrioritizationEnabled: ${PRIORITIZATION_AI_ENABLED:-false}
+      Prioritization__Model: ${PRIORITIZATION_MODEL:-meta-llama/llama-3.3-70b-instruct}
+      Prioritization__DegreeOfParallelism: ${PRIORITIZATION_PARALLELISM:-1}
+      Prioritization__BoundedCapacity: ${PRIORITIZATION_BOUNDED_CAPACITY:-10}
       
+      Prioritization__HighKeywords__0: ${PRIORITIZATION_HIGH_KEYWORDS_0:-}
+      Prioritization__LowKeywords__0: ${PRIORITIZATION_LOW_KEYWORDS_0:-}
+
     restart: unless-stopped
     networks:
       - link-tracker

@@ -4,5 +4,5 @@ namespace AiAgentService.Web.Pipeline.Filters.Abstractions;
 
 public interface IMessageFilter
 {
-    bool IsInvalid(MessageWrap message);
+    bool IsInvalid(MessageData message);
 }

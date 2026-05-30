@@ -7,7 +7,6 @@ public static class UpdatesMapper
 {
     public static LinkUpdateRequest ToRequest(this GrpcNamespace.LinkUpdatesRequest request) => new(
         Guid.Parse(request.Id),
-        request.Url,
         request.Description,
         request.ChatIds,
         request.Priority

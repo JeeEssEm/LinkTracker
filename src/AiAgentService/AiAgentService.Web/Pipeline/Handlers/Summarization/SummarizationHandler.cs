@@ -6,19 +6,19 @@ using Microsoft.Extensions.Options;
 
 namespace AiAgentService.Web.Pipeline.Handlers.Summarization;
 
-public class SummarizationHandler(IOptions<FiltersConfiguration> config, IOpenAiApiClient apiClient, ILogger<SummarizationHandler> logger) : IMessageHandler<MessageWrap, MessageWrap>
+public class SummarizationHandler(IOptions<FiltersConfiguration> config, IOpenAiApiClient apiClient, ILogger<SummarizationHandler> logger) : IMessageHandler<MessageData, MessageData>
 {
-    public async Task<MessageWrap> HandleAsync(MessageWrap data)
+    public async Task<MessageData> HandleAsync(MessageData data)
     {
         try
         {
             if (data.Message.Description.Length >= config.Value.Summarization.Threshold)
             {
                 var summarizedMessage = data.Message with { Description = await Summarize(data.Message.Description) };
-                logger.LogDebug("summarized text for message offset={offset}", data.Offset.Offset);
+                logger.LogDebug("summarized text for message id={id}", data.Message.Id);
                 return data with { Message = summarizedMessage };
             }
-            logger.LogDebug("summarized skipped for message offset={offset}", data.Offset.Offset);
+            logger.LogDebug("summarized skipped for message id={id}", data.Message.Id);
             return data;
         }
         catch (Exception e)

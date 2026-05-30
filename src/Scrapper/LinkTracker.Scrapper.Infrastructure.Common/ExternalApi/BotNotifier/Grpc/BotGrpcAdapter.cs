@@ -15,7 +15,7 @@ public class BotGrpcAdapter(BotServiceClient botClient, GrpcErrorMapper errorMap
         // TODO: а че теперь делать с HTTP и gRPC клиентами, если все сообщения идут через AI Agent Service????
         try
         {
-            await botClient.UpdateAsync(new LinkUpdatesRequest { ChatIds = { request.TgChatIds }, Id = request.Id.ToString(), Description = request.Description, Url = request.Url, Priority = "??" });
+            await botClient.UpdateAsync(new LinkUpdatesRequest { ChatIds = { request.TgChatIds }, Id = request.Id.ToString(), Description = request.Description, Priority = "Medium" });
             return Result.Ok();
         }
         catch (RpcException exception)

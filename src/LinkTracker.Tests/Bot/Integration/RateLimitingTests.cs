@@ -27,14 +27,14 @@ public class RateLimitingTests : IClassFixture<BotWebApplicationFactory>
         {
             var response = await _client.PostAsync(
                 "/updates",
-                JsonContent.Create(new LinkUpdateRequest(Guid.NewGuid(), "www.example.com", "hi", [123123], "HIGH"))
+                JsonContent.Create(new LinkUpdateRequest(Guid.NewGuid(), "www.example.com", [123123], "High"))
             );
             Assert.NotEqual(HttpStatusCode.TooManyRequests, response.StatusCode);
         }
 
         var exceeded = await _client.PostAsync(
             "/updates",
-            JsonContent.Create(new LinkUpdateRequest(Guid.NewGuid(), "www.example.com", "hi", [123123], "HIGH")));
+            JsonContent.Create(new LinkUpdateRequest(Guid.NewGuid(), "www.example.com", [123123], "High")));
         Assert.Equal(HttpStatusCode.TooManyRequests, exceeded.StatusCode);
     }
 }

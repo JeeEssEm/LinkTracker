@@ -92,7 +92,7 @@ public class OutboxIntegrationTests : IAsyncLifetime
 
         var events = new[]
         {
-            new CreateOutboxEvent(new LinkUpdateRequest(Guid.NewGuid(), "https://example.com", "Test Message Kafka", new[] { 100L }, "HIGH"))
+            new CreateOutboxEvent(new LinkUpdateRequest(Guid.NewGuid(), "Test Message Kafka", new[] { 100L }, "HIGH"))
         };
 
         await outboxRepo.CreateAsync(events);
@@ -141,7 +141,7 @@ public class OutboxIntegrationTests : IAsyncLifetime
 
         var events = new[]
         {
-            new CreateOutboxEvent(new LinkUpdateRequest(Guid.NewGuid(), "https://example2.com", "Test Message gRPC", new[] { 200L }, "HIGH"))
+            new CreateOutboxEvent(new LinkUpdateRequest(Guid.NewGuid(), "Test Message gRPC", new[] { 200L }, "HIGH"))
         };
 
         await outboxRepo.CreateAsync(events);
@@ -190,7 +190,7 @@ public class OutboxIntegrationTests : IAsyncLifetime
 
         var events = new[]
         {
-            new CreateOutboxEvent(new LinkUpdateRequest(Guid.NewGuid(), "https://example3.com", "Test Network Fail", new[] { 300L }, "HIGH"))
+            new CreateOutboxEvent(new LinkUpdateRequest(Guid.NewGuid(), "Test Network Fail", new[] { 300L }, "HIGH"))
         };
 
         await outboxRepo.CreateAsync(events);

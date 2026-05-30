@@ -20,7 +20,7 @@ public class LinkUpdatesHandler(ChannelWriter<NotifyEntry> entriesChannel)
             return Result.Fail(new IncorrectRequestParameters("No chat IDs provided"));
         }
 
-        var message = $"🔔 Обновление ссылки:\n{request.Url}\n\n{request.Description}";
+        var message = $"🔔 Обновление ссылки:\n\n{request.Description}";
 
         foreach (var chatId in request.TgChatIds)
         {

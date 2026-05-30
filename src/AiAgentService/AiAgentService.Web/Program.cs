@@ -1,7 +1,9 @@
 using System.Net.Http.Headers;
 using AiAgentService.Web.BackgroundServices;
 using AiAgentService.Web.Configurations;
+using AiAgentService.Web.Infrastructure;
 using AiAgentService.Web.Infrastructure.ExternalApi;
+using AiAgentService.Web.Infrastructure.MessageAcknowledgment;
 using AiAgentService.Web.Pipeline;
 using AiAgentService.Web.Pipeline.Filters;
 using AiAgentService.Web.Pipeline.Filters.Abstractions;
@@ -9,6 +11,7 @@ using AiAgentService.Web.Pipeline.Filters.BannedAuthors;
 using AiAgentService.Web.Pipeline.Filters.LengthFilter;
 using AiAgentService.Web.Pipeline.Filters.StopWords;
 using AiAgentService.Web.Pipeline.Handlers.Kafka;
+using AiAgentService.Web.Pipeline.Handlers.Prioritizing;
 using AiAgentService.Web.Pipeline.Handlers.Summarization;
 using Confluent.Kafka;
 using LinkTracker.Contracts.Broker;
@@ -20,6 +23,8 @@ builder.Services.Configure<TopicConfiguration>(builder.Configuration.GetSection(
 builder.Services.Configure<KafkaConfiguration>(builder.Configuration.GetSection(KafkaConfiguration.Position));
 builder.Services.Configure<FiltersConfiguration>(builder.Configuration.GetSection(FiltersConfiguration.Position));
 builder.Services.Configure<AiApiConfiguration>(builder.Configuration.GetSection(AiApiConfiguration.Position));
+builder.Services.Configure<PrioritizationConfiguration>(builder.Configuration.GetSection(PrioritizationConfiguration.Position));
+builder.Services.Configure<GroupingConfiguration>(builder.Configuration.GetSection(GroupingConfiguration.Position));
 
 var filtersConfig = builder.Configuration
     .GetSection(FiltersConfiguration.Position)
@@ -36,9 +41,13 @@ builder.Services.AddSingleton<IMessageFilter, LengthFilter>();
 builder.Services.AddSingleton<AggregateFilter>();
 
 builder.Services.AddScoped<SummarizationHandler>();
+builder.Services.AddScoped<PrioritizingHandler>();
 
-builder.Services.AddSingleton<SendToKafkaHandler>();
+builder.Services.AddSingleton<ISendToKafkaHandler, SendToKafkaHandler>();
 builder.Services.AddSingleton<MessageProcessingPipeline>();
+
+builder.Services.AddSingleton<MessageAcknowledgementManager>();
+builder.Services.AddSingleton<IConsumerUpdatesManager, ConsumerUpdatesManager>();
 
 
 var topicConfig = builder.Configuration

@@ -16,6 +16,7 @@ using LinkTracker.Scrapper.Application.Scraping.Pipelines;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.Github.Store;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.Notifications;
 using LinkTracker.Scrapper.Application.Scraping.Pipelines.StackOverflow.Store;
+using LinkTracker.Scrapper.Contracts.Dtos.Notifications;
 using LinkTracker.Scrapper.Domain.Tracking.SourceHandlers.Github;
 using LinkTracker.Scrapper.Domain.Tracking.SourceHandlers.StackOverflow;
 using LinkTracker.Scrapper.Domain.Tracking.ValueObjects;
@@ -26,6 +27,8 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Npgsql;
+using Telegram.Bot.Types;
+using ChatId = LinkTracker.Scrapper.Domain.Tracking.Entities.ChatId;
 
 namespace LinkTracker.Tests.Scrapper.Pipelines.Integration;
 
@@ -117,7 +120,6 @@ public abstract class BasePipelineIntegrationTests(
 
         var message = await WaitForNotificationByUrlAsync(link.LinkUri.ToString(), 10 * 1000);
 
-        Assert.Equal(link.LinkUri.ToString(), message.Url);
         Assert.Contains(chatId, message.TgChatIds);
         Assert.Contains("Critical bug fixed", message.Description);
         Assert.Contains("alice", message.Description);
@@ -146,7 +148,6 @@ public abstract class BasePipelineIntegrationTests(
 
         var message = await WaitForNotificationByUrlAsync(link.LinkUri.ToString(), 10 * 1000);
 
-        Assert.Equal(link.LinkUri.ToString(), message.Url);
         Assert.Contains(chatId, message.TgChatIds);
         Assert.Contains("Новый ответ от bob", message.Description);
         Assert.Contains("SO answer preview", message.Description);
@@ -341,7 +342,7 @@ public abstract class BasePipelineIntegrationTests(
         await command.ExecuteNonQueryAsync();
     }
 
-    private async Task<IReadOnlyList<LinkUpdateRequest>> WaitForNotificationsAsync(int expectedCount, int timeoutMs = 5000)
+    private async Task<IReadOnlyList<UpdateMessage>> WaitForNotificationsAsync(int expectedCount, int timeoutMs = 5000)
     {
         var startedAt = DateTime.UtcNow;
         while ((DateTime.UtcNow - startedAt).TotalMilliseconds < timeoutMs)
@@ -358,7 +359,7 @@ public abstract class BasePipelineIntegrationTests(
         return _notificationStrategy.Snapshot();
     }
 
-    private async Task<LinkUpdateRequest> WaitForNotificationByUrlAsync(string url, int timeoutMs = 5000)
+    private async Task<UpdateMessage> WaitForNotificationByUrlAsync(string url, int timeoutMs = 5000)
     {
         var startedAt = DateTime.UtcNow;
         while ((DateTime.UtcNow - startedAt).TotalMilliseconds < timeoutMs)
@@ -378,12 +379,12 @@ public abstract class BasePipelineIntegrationTests(
 
     private sealed class InMemoryNotificationStrategy : INotificationStrategy
     {
-        private readonly List<LinkUpdateRequest> _messages = [];
+        private readonly List<UpdateMessage> _messages = [];
         private readonly Lock _lock = new();
 
         public Task<SendResult> SendAsync(OutboxEvent[] messages, CancellationToken ct)
         {
-            var parsed = messages.Select(e => JsonSerializer.Deserialize<LinkUpdateRequest>(e.Payload))
+            var parsed = messages.Select(e => JsonSerializer.Deserialize<UpdateMessage>(e.Payload))
                 .Where(e => e != null)
                 .ToArray();
 
@@ -395,7 +396,7 @@ public abstract class BasePipelineIntegrationTests(
             return Task.FromResult(new SendResult(messages.Select(e => e.Id).ToList(), Array.Empty<FailedToDeliver>()));
         }
 
-        public IReadOnlyList<LinkUpdateRequest> Snapshot()
+        public IReadOnlyList<UpdateMessage> Snapshot()
         {
             lock (_lock)
             {

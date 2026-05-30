@@ -6,12 +6,12 @@ namespace AiAgentService.Web.Pipeline;
 
 public static class DataflowExtensions
 {
-    public static TransformBlock<TInput, TOutput?> CreateScopedTransformBlock<TInput, TOutput, TStep>(
+    public static TransformBlock<TInput, TOutput> CreateScopedTransformBlock<TInput, TOutput, TStep>(
         IServiceScopeFactory scopeFactory,
         ExecutionDataflowBlockOptions options,
         ILogger logger) where TStep : IMessageHandler<TInput, TOutput> where TOutput : class
     {
-        return new TransformBlock<TInput, TOutput?>(async input =>
+        return new TransformBlock<TInput, TOutput>(async input =>
         {
             try
             {
@@ -22,7 +22,7 @@ public static class DataflowExtensions
             catch (Exception e)
             {
                 logger.LogError(e, "Failed to process message");
-                return null;
+                throw;
             }
         }, options);
     }
