@@ -44,7 +44,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LinkTracker.Scrapper.Infras
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LinkTracker.Scrapper.Infrastructure.Common", "src\Scrapper\LinkTracker.Scrapper.Infrastructure.Common\LinkTracker.Scrapper.Infrastructure.Common.csproj", "{812F8A42-3FA2-4F1D-987F-FA6CD69A09B7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LinkTracker.Contracts.Broker", "src\Contracts\LinkTracker.Contracts.Broker\LinkTracker.Contracts.Broker.csproj", "{C73C621F-277B-4FB8-ACE6-986EFD14EC36}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LinkTracker.Contracts.ServiceDefaults", "src\Contracts\LinkTracker.Contracts.ServiceDefaults\LinkTracker.Contracts.ServiceDefaults.csproj", "{C73C621F-277B-4FB8-ACE6-986EFD14EC36}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "AiAgentService", "AiAgentService", "{B35BCBBB-1CD1-4C1E-BD26-2492CFC19405}"
 EndProject

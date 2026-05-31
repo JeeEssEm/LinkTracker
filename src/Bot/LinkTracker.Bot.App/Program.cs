@@ -22,6 +22,7 @@ using LinkTracker.Scrapper.Contracts.GrpcErrorProfiles;
 using LinkTracker.Scrapper.Grpc.Chats;
 using LinkTracker.Scrapper.Grpc.Links;
 using Microsoft.Extensions.Options;
+using OpenTelemetry.Metrics;
 using Polly;
 using Refit;
 using Telegram.Bot;
@@ -134,6 +135,15 @@ if (consumerOptions.KafkaConsumerEnabled)
     builder.Services.AddHostedService<ConsumerNotifierService>();
 }
 
+builder.Services.AddOpenTelemetry()
+    .WithMetrics(m =>
+        m
+            .AddAspNetCoreInstrumentation()
+            .AddRuntimeInstrumentation()
+            // .AddMeter("LinkTracker.Scrapper.Metrics.ApplicationMetrics")
+            .AddPrometheusExporter()
+    );
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -151,5 +161,7 @@ app.MapGrpcService<BotGrpcService>();
 app.UseRateLimiter();
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 app.MapUpdates();
+
+app.MapPrometheusScrapingEndpoint();
 
 app.Run();

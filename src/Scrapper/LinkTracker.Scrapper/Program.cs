@@ -43,7 +43,9 @@ using LinkTracker.Scrapper.Infrastructure.Pipelines.ExternalApi.StackOverflow;
 using LinkTracker.Scrapper.Infrastructure.Pipelines.NotificationStrategies;
 using LinkTracker.Scrapper.Infrastructure.Pipelines.Outbox;
 using LinkTracker.Scrapper.Infrastructure.Sql;
+using LinkTracker.Scrapper.Metrics;
 using LinkTracker.Scrapper.Scheduling;
+using OpenTelemetry.Metrics;
 using Quartz;
 using Refit;
 using StackExchange.Redis;
@@ -187,6 +189,7 @@ else
             {
                 throw new ArgumentException("Cannot init notifications via HTTP if BotClientOptions.UseGrpc = true");
             }
+
             builder.Services.AddScoped<INotificationStrategy, SyncNotificationStrategy>();
 
             if (notificationStrategyOptions.FallbackToKafka)
@@ -202,6 +205,7 @@ else
             {
                 builder.Services.AddScoped<INotificationStrategy, SyncNotificationStrategy>();
             }
+
             break;
     }
 }
@@ -265,6 +269,16 @@ builder.Logging.AddJsonConsole(options =>
     options.JsonWriterOptions = new JsonWriterOptions { Indented = true };
 });
 
+builder.Services.AddSingleton<ApplicationMetrics>();
+builder.Services.AddOpenTelemetry()
+    .WithMetrics(m =>
+        m
+            .AddAspNetCoreInstrumentation()
+            .AddRuntimeInstrumentation()
+            .AddMeter("LinkTracker.Scrapper.Metrics.ApplicationMetrics")
+            .AddPrometheusExporter()
+    );
+
 var app = builder.Build();
 
 
@@ -293,5 +307,7 @@ app.MapGetLinks();
 
 app.MapGrpcService<LinksGrpcService>();
 app.MapGrpcService<ChatsGrpcService>();
+
+app.MapPrometheusScrapingEndpoint();
 
 app.Run();

@@ -7,7 +7,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\Contracts\LinkTracker.Contracts.Broker\LinkTracker.Contracts.Broker.csproj" />
+        <ProjectReference Include="..\..\Contracts\LinkTracker.Contracts.ServiceDefaults\LinkTracker.Contracts.ServiceDefaults.csproj" />
         <ProjectReference Include="..\..\Contracts\LinkTracker.Contracts.Shared\LinkTracker.Contracts.Shared.csproj" />
         <ProjectReference Include="..\..\Scrapper\LinkTracker.Scrapper.Contracts\LinkTracker.Scrapper.Contracts.csproj" />
         <ProjectReference Include="..\LinkTracker.Bot.Contracts\LinkTracker.Bot.Contracts.csproj" />
@@ -30,6 +30,10 @@
         <PackageReference Include="Refit.HttpClientFactory" Version="10.0.1" />
         <PackageReference Include="Seq.Extensions.Logging" Version="9.0.0" />
         <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.6" />
+        <PackageReference Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" Version="1.15.3-beta.1" />
+        <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.15.3" />
+        <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.2" />
+        <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.15.1" />
     </ItemGroup>
 
     <ItemGroup>
