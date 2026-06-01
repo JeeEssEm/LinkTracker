@@ -97,11 +97,13 @@ builder.Services.AddPerIpRateLimiting(resilienceOptions.RateLimitOptions);
 builder.Services
     .AddRefitClient<IGithubRefitClient>()
     .ConfigureHttpClient(c => c.BaseAddress = new Uri("https://api.github.com"))
+    .AddHttpMessageHandler<TimingHttpHandler>()
     .AddResilienceHandler("github", b => b.BuildPipeline(resilienceOptions.GithubClientOptions));
 
 builder.Services
     .AddRefitClient<IStackOverflowRefitClient>()
     .ConfigureHttpClient(c => c.BaseAddress = new Uri("https://api.stackexchange.com"))
+    .AddHttpMessageHandler<TimingHttpHandler>()
     .AddResilienceHandler("stackoverflow", b => b.BuildPipeline(resilienceOptions.StackOverflowClientOptions));
 
 builder.Services.AddScoped<IStackOverflowClient, StackOverflowClient>();
@@ -153,6 +155,7 @@ else
     builder.Services
         .AddRefitClient<IBotRefitClient>()
         .ConfigureHttpClient(c => c.BaseAddress = new Uri(botClientOptions.BaseUrl))
+        .AddHttpMessageHandler<TimingHttpHandler>()
         .AddResilienceHandler("bot", b => b.BuildPipeline(resilienceOptions.BotClientOptions));
     builder.Services.AddScoped<IBotClient, BotRestAdapter>();
 }
@@ -249,14 +252,14 @@ builder.Services.AddQuartz(q =>
     var linkCheckJob = new JobKey("LinkCheckJob");
     var totalLinksCounter = new JobKey("TotalLinksCheckJob");
     
-    // q.AddJob<LinkCheckJob>(opts => opts.WithIdentity(linkCheckJob));
+    q.AddJob<LinkCheckJob>(opts => opts.WithIdentity(linkCheckJob));
     q.AddJob<TotalLinksCheckJob>(opts => opts.WithIdentity(totalLinksCounter));
-    // q.AddTrigger(opts => opts
-    //     .ForJob(linkCheckJob)
-    //     .WithIdentity("LinkCheckJob-trigger")
-    //     .WithSimpleSchedule(x => x
-    //         .WithIntervalInMinutes(schedulerOptions?.CheckIntervalInMinutes ?? 5)
-    //         .RepeatForever()));
+    q.AddTrigger(opts => opts
+        .ForJob(linkCheckJob)
+        .WithIdentity("LinkCheckJob-trigger")
+        .WithSimpleSchedule(x => x
+            .WithIntervalInMinutes(schedulerOptions?.CheckIntervalInMinutes ?? 5)
+            .RepeatForever()));
 
     q.AddTrigger(opts => opts
         .ForJob(totalLinksCounter)
@@ -268,6 +271,7 @@ builder.Services.AddQuartz(q =>
     );
 });
 builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
+builder.Services.AddTransient<TimingHttpHandler>();
 
 builder.Services.AddHostedService<OutboxBackgroundService>();
 
