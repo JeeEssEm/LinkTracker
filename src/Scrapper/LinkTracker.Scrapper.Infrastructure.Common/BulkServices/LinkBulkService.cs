@@ -66,4 +66,16 @@ public class LinkBulkService(DatabaseSession dbSession) : ILinkBulkRepository
 
         await dbConnection.ExecuteAsync(query, new { linkIds, now }, transaction: dbSession.Transaction);
     }
+
+    public async Task<Dictionary<LinkSourceType, long>> GetNumberOfTrackedLinks()
+    {
+        var dbConnection = await dbSession.OpenConnectionAsync();
+        var query = @"
+            SELECT source_type, COUNT(*) FROM links
+            GROUP BY source_type
+            ";
+        var counts = await dbConnection.QueryAsync<(LinkSourceType SourceType, long Count)>(query);
+        
+        return counts.ToDictionary(row => row.SourceType, row => row.Count);
+    }
 }

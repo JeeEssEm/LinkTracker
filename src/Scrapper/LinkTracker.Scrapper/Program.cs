@@ -67,6 +67,7 @@ builder.Services.Configure<TopicConfiguration>(builder.Configuration.GetSection(
 builder.Services.Configure<OutboxConfiguration>(builder.Configuration.GetSection(OutboxConfiguration.Position));
 builder.Services.Configure<CacheConfiguration>(builder.Configuration.GetSection(CacheConfiguration.Position));
 builder.Services.Configure<ResilienceOptions>(builder.Configuration.GetSection(ResilienceOptions.Position));
+builder.Services.Configure<MetricsConfiguration>(builder.Configuration.GetSection(MetricsConfiguration.Position));
 
 builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
@@ -234,16 +235,36 @@ builder.Services.AddSingleton<ProcessPullRequestsStep>();
 
 builder.Services.AddSingleton<ScrapingCoordinator>();
 
+var metricsOptions = builder.Configuration
+    .GetSection(MetricsConfiguration.Position)
+    .Get<MetricsConfiguration>();
+if (metricsOptions == null)
+{
+    logger.LogWarning("Metrics configuration is not set! Using default");
+    metricsOptions = new MetricsConfiguration();
+}
 builder.Services.AddQuartz(q =>
 {
-    var jobKey = new JobKey("LinkCheckJob");
-    q.AddJob<LinkCheckJob>(opts => opts.WithIdentity(jobKey));
+    var linkCheckJob = new JobKey("LinkCheckJob");
+    var totalLinksCounter = new JobKey("TotalLinksCheckJob");
+    
+    // q.AddJob<LinkCheckJob>(opts => opts.WithIdentity(linkCheckJob));
+    q.AddJob<TotalLinksCheckJob>(opts => opts.WithIdentity(totalLinksCounter));
+    // q.AddTrigger(opts => opts
+    //     .ForJob(linkCheckJob)
+    //     .WithIdentity("LinkCheckJob-trigger")
+    //     .WithSimpleSchedule(x => x
+    //         .WithIntervalInMinutes(schedulerOptions?.CheckIntervalInMinutes ?? 5)
+    //         .RepeatForever()));
+
     q.AddTrigger(opts => opts
-        .ForJob(jobKey)
-        .WithIdentity("LinkCheckJob-trigger")
+        .ForJob(totalLinksCounter)
+        .WithIdentity("TotalLinksCheckJob-trigger")
         .WithSimpleSchedule(x => x
-            .WithIntervalInMinutes(schedulerOptions?.CheckIntervalInMinutes ?? 5)
-            .RepeatForever()));
+            .WithIntervalInSeconds(metricsOptions.CheckNumberOfLinksSeconds)
+            .RepeatForever()
+        )
+    );
 });
 builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 
@@ -295,7 +316,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 app.UseMiddleware<RequestLoggingMiddleware>();
-
+app.UseMiddleware<MetricsMiddleware>();
 app.UseHttpsRedirection();
 
 app.UseRateLimiter();
