@@ -104,7 +104,7 @@ public class PipelineSteps
         var config = new FiltersConfiguration();
         config.Summarization.Threshold = 5;
         var options = Options.Create(config);
-        var client = Substitute.For<IOpenAiApiClient>();
+        var client = Substitute.For<IOpenAiCompatibleApiClient>();
 
         client.CreateChatCompletionAsync(Arg.Any<ChatCompletionRequest>()).Returns(
             new ApiResponse<ChatCompletionResponse>(new HttpResponseMessage(), null, new RefitSettings()
@@ -125,7 +125,7 @@ public class PipelineSteps
         var config = new FiltersConfiguration();
         config.Summarization.Threshold = 5;
         var options = Options.Create(config);
-        var client = Substitute.For<IOpenAiApiClient>();
+        var client = Substitute.For<IOpenAiCompatibleApiClient>();
 
         client.CreateChatCompletionAsync(Arg.Any<ChatCompletionRequest>()).Returns(
             new ApiResponse<ChatCompletionResponse>(new HttpResponseMessage(statusCode: HttpStatusCode.OK),
@@ -145,7 +145,7 @@ public class PipelineSteps
     [Fact]
     public async Task Test_PrioritizeHandler_CorrectlyIdentifiesHighPriority()
     {
-        var client = Substitute.For<IOpenAiApiClient>();
+        var client = Substitute.For<IOpenAiCompatibleApiClient>();
         client.CreateChatCompletionAsync(Arg.Any<ChatCompletionRequest>()).Returns(
             new ApiResponse<ChatCompletionResponse>(new HttpResponseMessage(statusCode: HttpStatusCode.OK),
                 new ChatCompletionResponse() { Choices = [new ChatChoice() { Message = new ChatMessage() { Content = "summarized text" } }] },
@@ -169,7 +169,7 @@ public class PipelineSteps
     [Fact]
     public async Task Test_PrioritizeHandler_CorrectlyIdentifiesMediumPriority()
     {
-        var client = Substitute.For<IOpenAiApiClient>();
+        var client = Substitute.For<IOpenAiCompatibleApiClient>();
         client.CreateChatCompletionAsync(Arg.Any<ChatCompletionRequest>()).Returns(
             new ApiResponse<ChatCompletionResponse>(new HttpResponseMessage(statusCode: HttpStatusCode.OK),
                 new ChatCompletionResponse() { Choices = [new ChatChoice() { Message = new ChatMessage() { Content = "summarized text" } }] },
@@ -193,7 +193,7 @@ public class PipelineSteps
     [Fact]
     public async Task Test_PrioritizeHandler_CorrectlyIdentifiesLowPriority()
     {
-        var client = Substitute.For<IOpenAiApiClient>();
+        var client = Substitute.For<IOpenAiCompatibleApiClient>();
         client.CreateChatCompletionAsync(Arg.Any<ChatCompletionRequest>()).Returns(
             new ApiResponse<ChatCompletionResponse>(new HttpResponseMessage(statusCode: HttpStatusCode.OK),
                 new ChatCompletionResponse() { Choices = [new ChatChoice() { Message = new ChatMessage() { Content = "summarized text" } }] },
