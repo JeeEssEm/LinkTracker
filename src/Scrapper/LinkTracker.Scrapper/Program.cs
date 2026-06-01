@@ -44,6 +44,7 @@ using LinkTracker.Scrapper.Infrastructure.Pipelines.NotificationStrategies;
 using LinkTracker.Scrapper.Infrastructure.Pipelines.Outbox;
 using LinkTracker.Scrapper.Infrastructure.Sql;
 using LinkTracker.Scrapper.Metrics;
+using LinkTracker.Scrapper.Metrics.Database;
 using LinkTracker.Scrapper.Scheduling;
 using OpenTelemetry.Metrics;
 using Quartz;
@@ -270,6 +271,7 @@ builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 
 builder.Services.AddHostedService<OutboxBackgroundService>();
 
+builder.Services.DecorateRepositoriesWithMetrics();
 var cacheOptions = builder.Configuration
     .GetSection(CacheConfiguration.Position)
     .Get<CacheConfiguration>();
