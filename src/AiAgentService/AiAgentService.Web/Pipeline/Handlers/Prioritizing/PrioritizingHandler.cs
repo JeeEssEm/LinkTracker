@@ -6,15 +6,16 @@ using Microsoft.Extensions.Options;
 
 namespace AiAgentService.Web.Pipeline.Handlers.Prioritizing;
 
-public class PrioritizingHandler(IOptions<PrioritizationConfiguration> config, IOpenAiApiClient apiClient, ILogger<PrioritizingHandler> logger) : IMessageHandler<MessageData, MessageData>
+public class PrioritizingHandler(IOptions<PrioritizationConfiguration> config, IOpenAiCompatibleApiClient apiClient, ILogger<PrioritizingHandler> logger) : IMessageHandler<MessageData, MessageData>
 {
     public async Task<MessageData> HandleAsync(MessageData data)
     {
         if (config.Value.AiPrioritizationEnabled)
         {
+            logger.LogInformation("Prioritize with AI for id={msg_id}", data.Message.Id);
             return data with { Priority = await GetMessagePriority(data.Message.Description) };
         }
-
+        logger.LogInformation("Prioritize without AI for id={msg_id}", data.Message.Id);
         return data with { Priority = GetFallbackMessagePriority(data.Message.Description) };
     }
 

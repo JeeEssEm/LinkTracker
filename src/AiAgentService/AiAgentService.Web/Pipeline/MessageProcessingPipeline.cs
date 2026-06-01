@@ -62,10 +62,7 @@ public class MessageProcessingPipeline
         });
         _batchTimer = new Timer(_ =>
         {
-            if (_batchBlock.BatchSize > 0)
-            {
-                _batchBlock.TriggerBatch();
-            }
+            _batchBlock.TriggerBatch();
         }, null, TimeSpan.FromMilliseconds(groupingConfig.Value.WindowMs), TimeSpan.FromMilliseconds(groupingConfig.Value.WindowMs));
 
         _grouperBlock = new TransformManyBlock<MessageData[], GroupedMessages>(GroupingHandler.Group, new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = 1 });
@@ -78,7 +75,9 @@ public class MessageProcessingPipeline
         {
             try
             {
-                var sent = await kafkaSender.Handle(new LinkUpdateRequest(Guid.NewGuid(), m.Description, m.ChatIds, m.Priority));
+                var newId = Guid.NewGuid();
+                logger.LogInformation("Publishing to kafka offsets={offsets}, newId={newId}", m.MessageIds, newId);
+                var sent = await kafkaSender.Handle(new LinkUpdateRequest(newId, m.Description, m.ChatIds, m.Priority));
                 if (sent)
                 {
                     _consumerManager.Commit(m.MessageIds, m.ChatIds);

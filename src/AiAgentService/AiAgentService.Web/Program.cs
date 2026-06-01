@@ -4,6 +4,7 @@ using AiAgentService.Web.Configurations;
 using AiAgentService.Web.Infrastructure;
 using AiAgentService.Web.Infrastructure.ExternalApi;
 using AiAgentService.Web.Infrastructure.MessageAcknowledgment;
+using AiAgentService.Web.Metrics;
 using AiAgentService.Web.Pipeline;
 using AiAgentService.Web.Pipeline.Filters;
 using AiAgentService.Web.Pipeline.Filters.Abstractions;
@@ -15,6 +16,7 @@ using AiAgentService.Web.Pipeline.Handlers.Prioritizing;
 using AiAgentService.Web.Pipeline.Handlers.Summarization;
 using Confluent.Kafka;
 using LinkTracker.Contracts.Broker;
+using OpenTelemetry.Metrics;
 using Refit;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -106,6 +108,16 @@ builder.Services
     })
     .AddStandardResilienceHandler();
 
+builder.Services.AddSingleton<ApplicationMetrics>();
+builder.Services.AddScoped<IOpenAiCompatibleApiClient, OpenAiClientWrapper>();
+builder.Services.AddOpenTelemetry()
+    .WithMetrics(m =>
+        m
+            .AddAspNetCoreInstrumentation()
+            .AddRuntimeInstrumentation()
+            .AddMeter("AiAgentService.Web.Metrics.ApplicationMetrics")
+            .AddPrometheusExporter()
+    );
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
@@ -116,6 +128,6 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
+app.MapPrometheusScrapingEndpoint();
 
 app.Run();

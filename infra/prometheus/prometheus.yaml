@@ -11,3 +11,6 @@ scrape_configs:
       - targets: [ 'host.docker.internal:8009' ]
         labels:
           service_name: 'bot'
+      - targets: [ 'host.docker.internal:8011' ]
+        labels:
+          service_name: 'ai_agent_service'
