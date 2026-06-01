@@ -1,9 +1,14 @@
 ﻿using System.Threading.Channels;
+using LinkTracker.Bot.App.Metrics;
 using Telegram.Bot;
 
 namespace LinkTracker.Bot.App.BackgroundServices.NotifierService;
 
-public class TelegramNotifierService(ITelegramBotClient botClient, ChannelReader<NotifyEntry> entriesChannel, ILogger<TelegramNotifierService> logger) : BackgroundService
+public class TelegramNotifierService(
+    ITelegramBotClient botClient,
+    ChannelReader<NotifyEntry> entriesChannel,
+    ILogger<TelegramNotifierService> logger,
+    ApplicationMetrics metrics) : BackgroundService
 {
     private const int TelegramMessagesPerSecondLimit = 30;
 
@@ -18,6 +23,7 @@ public class TelegramNotifierService(ITelegramBotClient botClient, ChannelReader
                 try
                 {
                     await botClient.SendMessage(entry.ChatId, entry.Message, cancellationToken: token);
+                    metrics.SentNotificationCount.Add(1);
                 }
                 catch (Exception e)
                 {

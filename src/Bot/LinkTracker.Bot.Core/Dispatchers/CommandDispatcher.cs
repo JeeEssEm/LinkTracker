@@ -1,12 +1,20 @@
 using LinkTracker.Bot.Core.HandlerTypes;
 using LinkTracker.Bot.Core.Registries;
+using LinkTracker.Bot.Core.Registries.Descriptors;
 using LinkTracker.Bot.Core.StateMachine;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 
 namespace LinkTracker.Bot.Core.Dispatchers;
 
-public class CommandDispatcher(CommandRegistry commandRegistry, IServiceProvider serviceProvider, ITelegramBotClient bot, ILogger<CommandDispatcher> logger, UserSession userSession)
+public class CommandDispatcher(
+    CommandRegistry commandRegistry,
+    IServiceProvider serviceProvider,
+    ITelegramBotClient bot,
+    ILogger<CommandDispatcher> logger,
+    UserSession userSession,
+    Action<CommandDescriptor?>? actionAfterDispatch = null
+    )
 {
     public async Task DispatchAsync(Message message, CancellationToken ct)
     {
@@ -37,5 +45,6 @@ public class CommandDispatcher(CommandRegistry commandRegistry, IServiceProvider
             cmd = (IMessageHandler)serviceProvider.GetRequiredService(fallbackDescriptor.CommandType);
         }
         await cmd.HandleAsync(message, ct);
+        actionAfterDispatch?.Invoke(descriptor);
     }
 }

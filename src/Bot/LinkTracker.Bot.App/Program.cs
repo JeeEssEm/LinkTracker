@@ -11,6 +11,7 @@ using LinkTracker.Bot.App.Features.Api;
 using LinkTracker.Bot.App.Features.Api.Updates;
 using LinkTracker.Bot.App.Features.Bot.TrackLink.Flow;
 using LinkTracker.Bot.App.Infrastructure.Middlewares;
+using LinkTracker.Bot.App.Metrics;
 using LinkTracker.Bot.App.StateController;
 using LinkTracker.Bot.Contracts.GrpcErrorProfiles;
 using LinkTracker.Bot.Core.DependencyInjectionExtensions;
@@ -74,7 +75,17 @@ builder.Services.AddTelegramBotPipeline(registry =>
     registry.UseDefaultDispatcher();
 });
 
-builder.Services.AddTelegramBotDependencies();
+builder.Services.AddTelegramBotDependencies(sp =>
+{
+    var metrics = sp.GetRequiredService<ApplicationMetrics>();
+    return cmd =>
+    {
+        if (cmd != null)
+        {
+            metrics.CommandRequestsCount.Add(1, new KeyValuePair<string, object?>("command", cmd.Name));
+        }
+    };
+});
 builder.Services.AddTelegramNotifier();
 
 builder.Logging.AddJsonConsole(options =>
@@ -98,8 +109,12 @@ builder.Services.AddGrpcErrorMapping(typeof(UpdatesGrpcErrorsProfile).Assembly, 
 
 if (scrapperOptions.UseGrpc)
 {
-    builder.Services.AddGrpcClient<ScrapperChatsService.ScrapperChatsServiceClient>(o => o.Address = new Uri(scrapperOptions.BaseUrl));
-    builder.Services.AddGrpcClient<ScrapperLinksService.ScrapperLinksServiceClient>(o => o.Address = new Uri(scrapperOptions.BaseUrl));
+    builder.Services
+        .AddGrpcClient<ScrapperChatsService.ScrapperChatsServiceClient>(o => o.Address = new Uri(scrapperOptions.BaseUrl))
+        .AddHttpMessageHandler<TimingHttpHandler>();
+    builder.Services
+        .AddGrpcClient<ScrapperLinksService.ScrapperLinksServiceClient>(o => o.Address = new Uri(scrapperOptions.BaseUrl))
+        .AddHttpMessageHandler<TimingHttpHandler>();
 
     builder.Services.AddScoped<IScrapperClient, ScrapperGrpcAdapter>();
 }
@@ -112,7 +127,8 @@ else
             var scrapperConfig = sp.GetRequiredService<IOptions<ScrapperClientOptions>>().Value;
             c.BaseAddress = new Uri(scrapperConfig.BaseUrl);
         })
-        .AddResilienceHandler("scrapper", b => b.BuildPipeline(resilienceOptions.ScrapperClientOptions));
+        .AddHttpMessageHandler<TimingHttpHandler>()
+        .AddResilienceHandler("scrapper", b => b.BuildPipeline(resilienceOptions.ScrapperClientOptions)) ;
     builder.Services.AddScoped<IScrapperClient, ScrapperRestAdapter>();
 }
 
@@ -135,12 +151,14 @@ if (consumerOptions.KafkaConsumerEnabled)
     builder.Services.AddHostedService<ConsumerNotifierService>();
 }
 
+builder.Services.AddTransient<TimingHttpHandler>();
+builder.Services.AddSingleton<ApplicationMetrics>();
 builder.Services.AddOpenTelemetry()
     .WithMetrics(m =>
         m
             .AddAspNetCoreInstrumentation()
             .AddRuntimeInstrumentation()
-            // .AddMeter("LinkTracker.Scrapper.Metrics.ApplicationMetrics")
+            .AddMeter("LinkTracker.Bot.App.Metrics.BotMetrics")
             .AddPrometheusExporter()
     );
 
