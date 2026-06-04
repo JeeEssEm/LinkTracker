@@ -75,7 +75,7 @@ public class LinkBulkService(DatabaseSession dbSession) : ILinkBulkRepository
             GROUP BY source_type
             ";
         var counts = await dbConnection.QueryAsync<(LinkSourceType SourceType, long Count)>(query);
-        
+
         return counts.ToDictionary(row => row.SourceType, row => row.Count);
     }
 }

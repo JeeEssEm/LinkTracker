@@ -16,7 +16,7 @@ public class OpenAiClientWrapper(IOpenAiApiClient client, ApplicationMetrics met
             new KeyValuePair<string, object?>("scope", "llm_agent"),
             new KeyValuePair<string, object?>("scope_type", request.Model)
         );
-        
+
         return resp;
     }
 }

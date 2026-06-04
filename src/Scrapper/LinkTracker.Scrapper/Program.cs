@@ -251,7 +251,7 @@ builder.Services.AddQuartz(q =>
 {
     var linkCheckJob = new JobKey("LinkCheckJob");
     var totalLinksCounter = new JobKey("TotalLinksCheckJob");
-    
+
     q.AddJob<LinkCheckJob>(opts => opts.WithIdentity(linkCheckJob));
     q.AddJob<TotalLinksCheckJob>(opts => opts.WithIdentity(totalLinksCounter));
     q.AddTrigger(opts => opts

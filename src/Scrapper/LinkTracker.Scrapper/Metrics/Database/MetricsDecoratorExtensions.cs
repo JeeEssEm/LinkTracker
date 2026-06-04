@@ -14,21 +14,21 @@ public static class MetricsDecoratorExtensions
     public static IServiceCollection DecorateRepositoriesWithMetrics(this IServiceCollection services)
     {
         services.Decorate<IChatRepository, ChatRepositoryMetricsDecorator>();
-        
+
         services.Decorate<ILinkRepository, LinkRepositoryMetricsDecorator>();
         services.Decorate<ILinkBulkRepository, LinkBulkRepositoryMetricsDecorator>();
-        
+
         services.Decorate<ISubscriptionRepository, SubscriptionRepositoryMetricsDecorator>();
         services.Decorate<ISubscriptionQueryService, SubscriptionQueryServiceMetricsDecorator>();
-        
+
         services.Decorate<IOutboxEventRepository, OutboxEventRepositoryMetricsDecorator>();
-        
+
         services.Decorate<IGithubStore, GithubStoreMetricsDecorator>();
         services.Decorate<IGithubRepository, GithubRepositoryMetricsDecorator>();
 
         services.Decorate<IStackOverflowStore, StackOverflowStoreMetricsDecorator>();
         services.Decorate<IStackOverflowRepository, StackOverflowRepositoryMetricsDecorator>();
-        
+
         return services;
     }
 }

@@ -111,14 +111,14 @@ if (scrapperOptions.UseGrpc)
 {
     builder.Services
         .AddGrpcClient<ScrapperChatsService.ScrapperChatsServiceClient>(o => o.Address = new Uri(scrapperOptions.BaseUrl))
-        .ConfigureHttpClient(client => 
+        .ConfigureHttpClient(client =>
         {
             client.DefaultRequestHeaders.Add("X-Source", "Bot");
         })
         .AddHttpMessageHandler<TimingHttpHandler>();
     builder.Services
         .AddGrpcClient<ScrapperLinksService.ScrapperLinksServiceClient>(o => o.Address = new Uri(scrapperOptions.BaseUrl))
-        .ConfigureHttpClient(client => 
+        .ConfigureHttpClient(client =>
         {
             client.DefaultRequestHeaders.Add("X-Source", "Bot");
         })
@@ -136,7 +136,7 @@ else
             c.BaseAddress = new Uri(scrapperConfig.BaseUrl);
         })
         .AddHttpMessageHandler<TimingHttpHandler>()
-        .AddResilienceHandler("scrapper", b => b.BuildPipeline(resilienceOptions.ScrapperClientOptions)) ;
+        .AddResilienceHandler("scrapper", b => b.BuildPipeline(resilienceOptions.ScrapperClientOptions));
     builder.Services.AddScoped<IScrapperClient, ScrapperRestAdapter>();
 }
 
