@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using Confluent.Kafka;
 using LinkTracker.Bot.App.Configurations;
+using LinkTracker.Bot.App.Metrics;
 using LinkTracker.Bot.Contracts.Rest;
 using LinkTracker.Contracts.Broker;
 using Microsoft.Extensions.Options;
@@ -13,7 +14,8 @@ public class ConsumerNotifierService(
     ITelegramBotClient botClient,
     ILogger<ConsumerNotifierService> logger,
     IOptions<KafkaConsumerOptions> options,
-    IOptions<TopicConfiguration> topicConfig) : BackgroundService
+    IOptions<TopicConfiguration> topicConfig,
+    ApplicationMetrics metrics) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -37,6 +39,7 @@ public class ConsumerNotifierService(
                     try
                     {
                         await botClient.SendMessage(chatId, notification.Description, cancellationToken: stoppingToken);
+                        metrics.SentNotificationCount.Add(1);
                     }
                     catch (Exception e)
                     {
