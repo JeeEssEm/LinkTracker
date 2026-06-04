@@ -220,7 +220,7 @@ public class PipelineSteps
         var services = new ServiceCollection();
         var consumer = Substitute.For<IConsumerUpdatesManager>();
         var kafkaHandler = Substitute.For<ISendToKafkaHandler>();
-        var client = Substitute.For<IOpenAiApiClient>();
+        var client = Substitute.For<IOpenAiCompatibleApiClient>();
         client.CreateChatCompletionAsync(Arg.Any<ChatCompletionRequest>()).Returns(
             new ApiResponse<ChatCompletionResponse>(new HttpResponseMessage(statusCode: HttpStatusCode.BadRequest),
                 new ChatCompletionResponse(),
@@ -230,7 +230,7 @@ public class PipelineSteps
         services.AddSingleton<AggregateFilter>();
         services.AddLogging(builder => builder.AddProvider(NullLoggerProvider.Instance));
 
-        services.AddScoped<IOpenAiApiClient>(_ => client);
+        services.AddScoped<IOpenAiCompatibleApiClient>(_ => client);
         services.AddScoped<SummarizationHandler>();
         services.AddScoped<PrioritizingHandler>();
         services.AddSingleton<MessageProcessingPipeline>();
@@ -274,7 +274,7 @@ public class PipelineSteps
         var services = new ServiceCollection();
         var consumer = Substitute.For<IConsumerUpdatesManager>();
         var kafkaHandler = Substitute.For<ISendToKafkaHandler>();
-        var client = Substitute.For<IOpenAiApiClient>();
+        var client = Substitute.For<IOpenAiCompatibleApiClient>();
         client.CreateChatCompletionAsync(Arg.Any<ChatCompletionRequest>()).Returns(
             new ApiResponse<ChatCompletionResponse>(new HttpResponseMessage(statusCode: HttpStatusCode.BadRequest),
                 new ChatCompletionResponse(),
@@ -284,7 +284,7 @@ public class PipelineSteps
         services.AddSingleton<AggregateFilter>();
         services.AddLogging(builder => builder.AddProvider(NullLoggerProvider.Instance));
 
-        services.AddScoped<IOpenAiApiClient>(_ => client);
+        services.AddScoped<IOpenAiCompatibleApiClient>(_ => client);
         services.AddScoped<SummarizationHandler>();
         services.AddScoped<PrioritizingHandler>();
         services.AddSingleton<MessageProcessingPipeline>();
